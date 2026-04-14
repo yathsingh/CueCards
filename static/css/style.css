@@ -183,3 +183,42 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     visibility: visible;
     transform: translateX(-50%) translateY(0); /* Drops into place smoothly */
 }
+
+/* --- VOICE & MIC BUTTONS --- */
+.voice-btn {
+    position: absolute;
+    right: 15px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid #475569;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    color: #f8fafc;
+}
+
+.speaker { top: 15px; }
+.mic { top: 65px; } /* Sits right beneath the speaker */
+
+.voice-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    transform: scale(1.1);
+    border-color: #38bdf8;
+}
+
+/* --- AUTO-GRADER GLOW PHYSICS --- */
+.glow-success {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.8) !important;
+    border-color: #10b981 !important;
+}
+.glow-fail {
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.8) !important;
+    border-color: #ef4444 !important;
+}

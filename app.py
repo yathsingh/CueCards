@@ -2,6 +2,7 @@ import os
 import fitz
 import sqlite3
 import json
+import re
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -32,14 +33,12 @@ def get_db_connection():
     conn = sqlite3.connect('database/flashcards.db')
     conn.row_factory = sqlite3.Row
     
-    # --- AUTO-MIGRATE GAMIFICATION TABLES ---
     conn.execute('''
         CREATE TABLE IF NOT EXISTS user_stats (
             id INTEGER PRIMARY KEY,
             coins INTEGER DEFAULT 0
         )
     ''')
-    # Seed the stats row if empty
     if not conn.execute('SELECT * FROM user_stats WHERE id = 1').fetchone():
         conn.execute('INSERT INTO user_stats (id, coins) VALUES (1, 0)')
 
@@ -57,7 +56,56 @@ def get_db_connection():
 def index():
     return render_template('index.html')
 
-# --- NEW GAMIFICATION ROUTES ---
+# --- VOICE GRADING ROUTE ---
+@app.route('/auto_grade', methods=['POST'])
+def auto_grade():
+    data = request.json
+    question = data.get('question')
+    correct_answer = data.get('correct_answer')
+    user_answer = data.get('user_answer')
+
+    if not all([question, correct_answer, user_answer]):
+        return jsonify({"error": "Missing data for grading"}), 400
+
+    prompt = f"""
+    You are a strict but fair AI tutor evaluating a student's spoken flashcard response.
+    Question: "{question}"
+    Actual Correct Answer: "{correct_answer}"
+    Student's Spoken Answer: "{user_answer}"
+    
+    Grade the student's spoken answer on a scale of 0 to 5:
+    0: Completely wrong or off-topic.
+    1: Incorrect, but had a slight hint of the right direction.
+    2: Incorrect, but remembered some correct details or keywords.
+    3: Correct core concept, but missing details or poorly explained.
+    4: Correct and understandable, missing only minor nuances.
+    5: Perfect, completely accurate to the actual answer.
+    
+    Return ONLY a single integer from 0 to 5. No text, no explanation.
+    """
+
+    if USE_LOCAL_AI:
+        try:
+            response = ollama.generate(model='llama3', prompt=prompt)
+            match = re.search(r'\d', response.get('response', ''))
+            grade = int(match.group()) if match else 0
+            return jsonify({"grade": min(max(grade, 0), 5)})
+        except Exception as e:
+            return jsonify({"error": f"Ollama Error: {str(e)}"}), 500
+    else:
+        if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
+        try:
+            response = client.models.generate_content(
+                model='gemini-3-flash-preview',
+                contents=prompt,
+            )
+            match = re.search(r'\d', response.text)
+            grade = int(match.group()) if match else 0
+            return jsonify({"grade": min(max(grade, 0), 5)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+# --- GAMIFICATION ROUTES ---
 @app.route('/get_coins', methods=['GET'])
 def get_coins():
     try:
@@ -74,7 +122,6 @@ def complete_review():
     today = datetime.now().strftime('%Y-%m-%d')
     try:
         conn = get_db_connection()
-        # Check if already rewarded for this deck today
         rewarded = conn.execute('SELECT * FROM daily_rewards WHERE deck_name = ? AND date = ?', (deck_name, today)).fetchone()
         
         if not rewarded:
@@ -83,14 +130,14 @@ def complete_review():
             conn.commit()
             coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
             conn.close()
-            return jsonify({"rewarded": True, "coins": coins, "message": "Earned 5 coins!"})
+            return jsonify({"rewarded": True, "coins": coins})
         else:
             conn.close()
-            return jsonify({"rewarded": False, "message": "Already earned today."})
+            return jsonify({"rewarded": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ... (Keep all existing upload, generate, save_cards, get_decks, get_due_cards, get_all_cards, and review_card routes exactly the same as before) ...
+# --- STANDARD ENGINE ROUTES ---
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
     if 'file' not in request.files: return jsonify({"error": "No file uploaded"}), 400
@@ -133,7 +180,7 @@ def generate_cards():
         if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
         try:
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-3-flash-preview',
                 contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )

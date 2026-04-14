@@ -1,7 +1,7 @@
 let currentDeck = [];
 let currentIndex = 0;
 let isFlipped = false;
-let hasFlippedOnce = false; // Tracks if grade buttons should be revealed
+let hasFlippedOnce = false;
 let currentDeckName = "";
 let currentMode = "daily";
 
@@ -21,22 +21,14 @@ function updateCoins(newAmount) {
     setTimeout(() => coinEl.parentElement.style.transform = 'scale(1)', 200);
 }
 
-// Custom Toast function to replace standard browser alert
 function showToast(message) {
     const toast = document.getElementById('toastNotification');
-    const toastMsg = document.getElementById('toastMessage');
-    toastMsg.innerText = message;
-    
-    // Slide it in
+    document.getElementById('toastMessage').innerText = message;
     toast.classList.add('show');
-    
-    // Slide it out gracefully after 3.5 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3500);
+    setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
-// --- NAVIGATION ---
+// --- NAVIGATION & DASHBOARD ---
 function hideAll() {
     ['dashboardSection', 'deckMenuSection', 'uploadSection', 'reviewSection'].forEach(id => {
         document.getElementById(id).style.display = 'none';
@@ -76,7 +68,6 @@ function openDeckMenu(deckName, dueCards, totalCards) {
     }
 }
 
-// --- DASHBOARD PIPELINE ---
 async function loadDashboard() {
     const deckListDiv = document.getElementById('deckList');
     deckListDiv.innerHTML = "Loading decks...";
@@ -108,7 +99,7 @@ async function loadDashboard() {
     } catch (e) { deckListDiv.innerHTML = "Error loading decks."; }
 }
 
-// --- 1. THE INGESTION PIPELINE ---
+// --- THE INGESTION PIPELINE ---
 async function processPDF() {
     const fileInput = document.getElementById('pdfUpload');
     const deckNameInput = document.getElementById('deckName').value.trim();
@@ -132,10 +123,7 @@ async function processPDF() {
             body: JSON.stringify({ text: data.preview })
         });
         
-        if (!aiResponse.ok) {
-            let err = await aiResponse.json();
-            throw new Error(err.error || "Generation failed.");
-        }
+        if (!aiResponse.ok) throw new Error((await aiResponse.json()).error || "Generation failed.");
         
         const generatedCards = await aiResponse.json(); 
 
@@ -150,7 +138,7 @@ async function processPDF() {
     } catch (error) { statusDiv.innerText = "Error: " + error.message; }
 }
 
-// --- 2. THE MODES PIPELINE ---
+// --- THE MODES PIPELINE ---
 async function startMode(mode) {
     currentMode = mode;
     hideAll();
@@ -177,13 +165,16 @@ async function startMode(mode) {
 }
 
 async function displayCard() {
+    // Stop reading previous card if we skip ahead quickly
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
     if (currentIndex >= currentDeck.length || currentIndex < 0) {
         document.getElementById('reviewStatus').innerText = "You have reached the end of the deck.";
         document.querySelector('.card-container').style.display = 'none';
         document.getElementById('gradeButtons').style.display = 'none';
         document.getElementById('studyButtons').style.display = 'none';
 
-        // --- GAMIFICATION: Check for daily reward ---
+        // Check for daily reward
         if (currentMode === 'daily' && currentDeck.length > 0) {
             try {
                 const res = await fetch('/complete_review', {
@@ -193,8 +184,7 @@ async function displayCard() {
                 const rewardData = await res.json();
                 if (rewardData.rewarded) {
                     updateCoins(rewardData.coins);
-                    // Use the custom Toast instead of the alert!
-                    setTimeout(() => showToast(`Mission Accomplished! +5 Coins for completing your daily revision.`), 100);
+                    setTimeout(() => showToast(`Mission Accomplished! +5 Coins for completing daily revision.`), 100);
                 }
             } catch (e) { console.error("Reward error", e); }
         }
@@ -213,39 +203,28 @@ async function displayCard() {
     flashcardContainer.classList.add('slide-in');
     setTimeout(() => flashcardContainer.classList.remove('slide-in'), 400);
 
-    // Reset State for the new card
     flashcard.classList.remove('flipped');
     isFlipped = false;
     hasFlippedOnce = false;
     document.getElementById('gradeButtons').style.display = 'none';
-    
     document.getElementById('studyButtons').style.display = currentMode === 'study' ? 'flex' : 'none';
 }
 
 function flipCard() {
     const flashcard = document.getElementById('flashcard');
-    
-    // Toggle flip state
     isFlipped = !isFlipped;
-    if (isFlipped) {
-        flashcard.classList.add('flipped');
-    } else {
-        flashcard.classList.remove('flipped');
-    }
+    if (isFlipped) flashcard.classList.add('flipped');
+    else flashcard.classList.remove('flipped');
 
-    // Only reveal buttons on the first flip (if not in study mode)
     if (!hasFlippedOnce) {
         hasFlippedOnce = true;
-        if (currentMode !== 'study') {
-            document.getElementById('gradeButtons').style.display = 'flex';
-        }
+        if (currentMode !== 'study') document.getElementById('gradeButtons').style.display = 'flex';
     }
 }
 
-// --- 3. INTERACTIONS ---
+// --- INTERACTIONS & GRADING ---
 async function submitGrade(grade) {
     document.getElementById('gradeButtons').style.display = 'none';
-
     if (currentMode === 'daily') {
         const cardId = currentDeck[currentIndex].id;
         fetch(`/review_card/${cardId}`, {
@@ -258,10 +237,7 @@ async function submitGrade(grade) {
 
 function nextCard() { animateToNextCard(); }
 function prevCard() {
-    if (currentIndex > 0) {
-        currentIndex--;
-        displayCard();
-    }
+    if (currentIndex > 0) { currentIndex--; displayCard(); }
 }
 
 function animateToNextCard() {
@@ -274,7 +250,144 @@ function animateToNextCard() {
     }, 350);
 }
 
-// Initialize on page load
+// ==========================================
+// --- THE VOICE & AI-GRADER ENGINE ---
+// ==========================================
+
+function speakText(side) {
+    if (!('speechSynthesis' in window)) {
+        showToast("Your browser does not support Voice Teaching.");
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const textToRead = side === 'front' ? currentDeck[currentIndex].question : currentDeck[currentIndex].answer;
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+}
+
+let isListening = false;
+
+function startDictation() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showToast("Speech recognition not supported in your browser. Use Chrome.");
+        return;
+    }
+    if (isListening) return;
+    isListening = true;
+    
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    const micBtn = document.getElementById('micBtn');
+    micBtn.style.color = '#ef4444'; 
+    micBtn.style.borderColor = '#ef4444';
+    showToast("Listening... Speak your answer!");
+
+    recognition.start();
+
+    recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        showToast(`Heard: "${transcript}"... AI Grading...`);
+        resetMicBtn(micBtn);
+        await autoGradeAnswer(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        
+        // Smart error handling to tell you exactly what went wrong
+        if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+            showToast("Mic blocked! Please click the lock icon in your URL bar to allow microphone access.");
+        } else if (event.error === 'network') {
+            showToast("Network error. Browser speech recognition requires an internet connection.");
+        } else if (event.error === 'no-speech') {
+            showToast("Didn't catch that. It was too quiet!");
+        } else {
+            showToast(`Mic error: ${event.error}. Note: This feature works best in Google Chrome.`);
+        }
+        
+        resetMicBtn(micBtn);
+    };
+    
+    recognition.onend = () => { resetMicBtn(micBtn); };
+}
+
+function resetMicBtn(btn) {
+    btn.style.color = 'inherit';
+    btn.style.borderColor = '#475569';
+    isListening = false;
+}
+
+async function autoGradeAnswer(spokenText) {
+    const card = currentDeck[currentIndex];
+    
+    try {
+        const response = await fetch('/auto_grade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: card.question, correct_answer: card.answer, user_answer: spokenText })
+        });
+        
+        const data = await response.json();
+        if(data.error) throw new Error(data.error);
+        
+        const grade = data.grade;
+        showToast(`AI Graded: ${grade}/5`);
+        
+        const flashcard = document.getElementById('flashcard');
+        
+        // Flip card to reveal the actual answer to the user
+        if (!isFlipped) flipCard();
+
+        // Visual and Audio feedback
+        if (grade >= 3) {
+            flashcard.classList.add('glow-success');
+            playTone(600, 'sine', 0.1); 
+            playTone(800, 'sine', 0.15, 0.1); // Mario coin effect
+        } else {
+            flashcard.classList.add('glow-fail');
+            playTone(200, 'sawtooth', 0.3); // Buzzer effect
+        }
+        
+        // Wait 2.5 seconds for the user to compare their answer, then auto-submit
+        setTimeout(() => {
+            flashcard.classList.remove('glow-success', 'glow-fail');
+            if (currentMode !== 'study') {
+                submitGrade(grade);
+            }
+        }, 2500);
+
+    } catch (error) {
+        showToast("Error connecting to AI Grader.");
+        console.error(error);
+    }
+}
+
+// Simple Web Audio API Synthesizer for feedback noises
+function playTone(freq, type, duration, delay=0) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = type;
+    osc.frequency.value = freq;
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const startTime = ctx.currentTime + delay;
+    osc.start(startTime);
+    gain.gain.setValueAtTime(0.1, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.00001, startTime + duration);
+    osc.stop(startTime + duration);
+}
+
 window.onload = () => {
     loadDashboard();
     fetchCoins();

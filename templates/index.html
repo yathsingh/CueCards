@@ -28,7 +28,6 @@
         <div id="deckMenuSection" style="display: none;">
             <h2 id="menuDeckTitle" style="margin-bottom: 5px;">Deck Name</h2>
             <p id="menuDeckStats" style="font-weight: 600; color: #3b82f6;">X Due / Y Total</p>
-            
             <div class="menu-stack">
                 <button id="btnDaily" class="btn-primary" onclick="startMode('daily')">🔥 Daily Revision (SM-2)</button>
                 <button class="btn-warning" onclick="startMode('cram')">⚡ Cram Session (All Cards)</button>
@@ -51,10 +50,18 @@
 
         <div id="reviewSection" style="display: none;">
             <h2 id="reviewTitle">Review Session</h2>
+            
             <div class="card-container" onclick="flipCard()">
                 <div class="card" id="flashcard">
-                    <div class="front" id="cardFront">Question</div>
-                    <div class="back" id="cardBack">Answer</div>
+                    <div class="front">
+                        <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('front')" title="Read aloud">🔊</button>
+                        <button class="voice-btn mic" id="micBtn" onclick="event.stopPropagation(); startDictation()" title="Answer with voice">🎙️</button>
+                        <div id="cardFront">Question</div>
+                    </div>
+                    <div class="back">
+                        <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('back')" title="Read aloud">🔊</button>
+                        <div id="cardBack">Answer</div>
+                    </div>
                 </div>
             </div>
 
