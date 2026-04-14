@@ -21,6 +21,111 @@ function updateCoins(newAmount) {
     setTimeout(() => coinEl.parentElement.style.transform = 'scale(1)', 200);
 }
 
+// --- MASCOT LOGIC ---
+const mascotPhrases = {
+    idle: [
+        "You're doing great! 🌟",
+        "Every card makes your brain stronger! 🧠",
+        "I believe in you!",
+        "Learning is a superpower! ⚡",
+        "Consistency is key! 🗝️",
+        "Let's crush this deck! 🔥",
+        "Take a deep breath, you got this!"
+    ],
+    success: [
+        "Perfect memory! 🎯",
+        "Nailed it! 🚀",
+        "You're on fire! 🔥",
+        "Wow, incredible! ⭐"
+    ],
+    struggle: [
+        "That's okay, mistakes help us learn! 🌱",
+        "We'll get it next time!",
+        "Don't give up! 💪",
+        "Practice makes perfect!"
+    ]
+};
+
+// Variable to hold the interval ID so we can reset it if needed
+let mascotInterval;
+
+function triggerMascot(type = 'idle', customText = null) {
+    const bubble = document.getElementById('mascotSpeech');
+    if (!bubble) return;
+    
+    // Quick pop animation
+    bubble.style.transform = 'scale(0.8)';
+    bubble.style.opacity = '0';
+    
+    setTimeout(() => {
+        if (customText) {
+            bubble.innerText = customText;
+        } else if (type === 'progress') {
+            // Dynamic Progress Message
+            const cardsLeft = currentDeck.length - currentIndex;
+            if (cardsLeft === 1) {
+                bubble.innerText = "Just 1 card left! Finish strong! 🏁";
+            } else if (cardsLeft > 0) {
+                bubble.innerText = `Only ${cardsLeft} revisions left in this session! Keep going! 💪`;
+            } else {
+                bubble.innerText = "All done! You're a rockstar! 🌟";
+            }
+        } else {
+            const list = mascotPhrases[type];
+            bubble.innerText = list[Math.floor(Math.random() * list.length)];
+        }
+        bubble.style.transform = 'scale(1)';
+        bubble.style.opacity = '1';
+    }, 200);
+
+    // Reset the idle timer whenever Cue speaks to prevent talking over himself
+    startMascotTimer();
+}
+
+function startMascotTimer() {
+    // Clear existing timer if there is one
+    if (mascotInterval) clearInterval(mascotInterval);
+    
+    // Cue talks randomly every 60 seconds (much slower, less annoying)
+    mascotInterval = setInterval(() => {
+        // If in a review session, occasionally say how many are left
+        if (document.getElementById('reviewSection').style.display === 'block' && currentDeck.length > 0) {
+             if(Math.random() > 0.5) {
+                 triggerMascot('progress');
+             } else {
+                 triggerMascot('idle');
+             }
+        } else {
+            triggerMascot('idle');
+        }
+    }, 60000); // 60,000 ms = 1 minute
+}
+
+// Start the timer initially
+startMascotTimer();
+function triggerMascot(type = 'idle', customText = null) {
+    const bubble = document.getElementById('mascotSpeech');
+    if (!bubble) return;
+    
+    // Quick pop animation
+    bubble.style.transform = 'scale(0.8)';
+    bubble.style.opacity = '0';
+    
+    setTimeout(() => {
+        if (customText) {
+            bubble.innerText = customText;
+        } else {
+            const list = mascotPhrases[type];
+            bubble.innerText = list[Math.floor(Math.random() * list.length)];
+        }
+        bubble.style.transform = 'scale(1)';
+        bubble.style.opacity = '1';
+    }, 200);
+}
+
+// Cue talks randomly every 15 seconds!
+setInterval(() => triggerMascot('idle'), 15000);
+
 function showToast(message) {
     const toast = document.getElementById('toastNotification');
     document.getElementById('toastMessage').innerText = message;
@@ -225,6 +330,14 @@ function flipCard() {
 // --- INTERACTIONS & GRADING ---
 async function submitGrade(grade) {
     document.getElementById('gradeButtons').style.display = 'none';
+
+    // Cue Reacts ONLY 30% of the time so he isn't overly chatty when you review fast
+    if (Math.random() > 0.70) {
+        if (grade >= 4) triggerMascot('success');
+        else if (grade <= 2) triggerMascot('struggle');
+        else triggerMascot('idle');
+    }
+
     if (currentMode === 'daily') {
         const cardId = currentDeck[currentIndex].id;
         fetch(`/review_card/${cardId}`, {

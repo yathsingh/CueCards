@@ -222,3 +222,65 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     box-shadow: 0 0 40px rgba(239, 68, 68, 0.8) !important;
     border-color: #ef4444 !important;
 }
+
+/* --- CUE THE MASCOT --- */
+.mascot-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 260px; /* NEW: Fixed width prevents the mascot from shifting! */
+    z-index: 500;
+    pointer-events: none;
+}
+
+@media (min-width: 1050px) {
+    .mascot-container {
+        bottom: 10%;
+        left: 5%; 
+    }
+}
+
+.speech-bubble {
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid #38bdf8; /* Neon blue */
+    color: #f8fafc;
+    padding: 14px 20px;
+    border-radius: 20px; 
+    font-weight: 600;
+    font-size: 0.95rem;
+    max-width: 220px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    margin-bottom: 15px;
+    position: relative;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The little triangle pointing to Cue */
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 12px 12px 0;
+    border-style: solid;
+    border-color: #38bdf8 transparent transparent transparent;
+}
+
+#mascotImg {
+    width: 140px;
+    height: auto;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
+    animation: floatMascot 4s ease-in-out infinite;
+}
+
+/* Makes Cue hover up and down slightly */
+@keyframes floatMascot {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-15px) rotate(2deg); }
+}
