@@ -1,0 +1,140 @@
+import sqlite3
+from datetime import datetime, timedelta
+import os
+import fitz  # PyMuPDF
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, render_template
+
+load_dotenv()
+
+# The new client automatically picks up GEMINI_API_KEY from the environment
+client = genai.Client() 
+app = Flask(__name__)
+
+@app.route('/generate', methods=['POST'])
+def generate_cards():
+    data = request.json
+    raw_text = data.get('text', '')
+
+    if not raw_text:
+        return jsonify({"error": "No text provided"}), 400
+
+    prompt = f"""
+    You are an expert teacher. Based on the text below, create a comprehensive deck of flashcards.
+    
+    Requirements:
+    1. Include definitions, key concepts, and "edge cases" or common pitfalls.
+    2. Ensure cards are designed for active recall.
+    3. Return ONLY a valid JSON array of objects.
+    
+    Format:
+    [
+      {{"question": "...", "answer": "...", "type": "Concept/Definition/Pitfall"}}
+    ]
+
+    Text: {raw_text[:4000]} 
+    """
+
+    # Using the new models.generate_content syntax and gemini-3-flash
+    response = client.models.generate_content(
+        model='gemini-3-flash-preview',
+        contents=prompt,
+        # We can enforce JSON output via the new types config!
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+        ),
+    )
+    
+    return jsonify(response.text)
+
+# --- DATABASE HELPER ---
+def get_db_connection():
+    conn = sqlite3.connect('database/flashcards.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+# --- 1. SAVE NEW CARDS ---
+@app.route('/save_cards', methods=['POST'])
+def save_cards():
+    cards = request.json.get('cards', [])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    for card in cards:
+        cursor.execute('''
+            INSERT INTO cards (question, answer, card_type)
+            VALUES (?, ?, ?)
+        ''', (card['question'], card['answer'], card.get('type', 'Concept')))
+        
+    conn.commit()
+    conn.close()
+    return jsonify({"message": f"{len(cards)} cards saved to database!"})
+
+# --- 2. FETCH DUE CARDS ---
+@app.route('/get_due_cards', methods=['GET'])
+def get_due_cards():
+    conn = get_db_connection()
+    # Fetch cards where the review date is today or earlier
+    due_cards = conn.execute('''
+        SELECT * FROM cards 
+        WHERE next_review_date <= date('now')
+    ''').fetchall()
+    conn.close()
+    
+    return jsonify([dict(card) for card in due_cards])
+
+# --- 3. THE SM-2 ENGINE ---
+@app.route('/review_card/<int:card_id>', methods=['POST'])
+def review_card(card_id):
+    grade = request.json.get('grade') # 0 to 5
+    if grade is None or not (0 <= grade <= 5):
+        return jsonify({"error": "Invalid grade (must be 0-5)"}), 400
+
+    conn = get_db_connection()
+    card = conn.execute('SELECT * FROM cards WHERE id = ?', (card_id,)).fetchone()
+    
+    if not card:
+        return jsonify({"error": "Card not found"}), 404
+
+    # Extract current stats
+    repetition = card['repetition']
+    interval = card['interval']
+    ef = card['ease_factor']
+
+    # SM-2 Logic
+    if grade >= 3: # Correct recall
+        if repetition == 0:
+            interval = 1
+        elif repetition == 1:
+            interval = 6
+        else:
+            interval = round(interval * ef)
+        repetition += 1
+    else: # Failed recall
+        repetition = 0
+        interval = 1
+
+    # Update Ease Factor
+    ef = ef + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02))
+    if ef < 1.3:
+        ef = 1.3
+
+    # Calculate next review date
+    next_review_date = datetime.now() + timedelta(days=interval)
+
+    # Save back to database
+    conn.execute('''
+        UPDATE cards 
+        SET repetition = ?, interval = ?, ease_factor = ?, next_review_date = ?
+        WHERE id = ?
+    ''', (repetition, interval, ef, next_review_date.strftime('%Y-%m-%d'), card_id))
+    
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Card updated", "next_review": next_review_date.strftime('%Y-%m-%d')})
+
+if __name__ == '__main__':
+    app.run(debug=True)
