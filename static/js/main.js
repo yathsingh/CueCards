@@ -29,14 +29,24 @@ async function processPDF() {
 
         // Step B: Generate Cards via Gemini
         statusDiv.innerText = "AI is studying the text and generating cards (this takes a few seconds)...";
-        response = await fetch('/generate', {
+        let aiResponse = await fetch('/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: data.preview })
         });
         
-        let aiData = await response.json();
-        const generatedCards = JSON.parse(aiData); // Parse the AI's JSON string
+        if (!aiResponse.ok) {
+            let errorText = await aiResponse.text();
+            try {
+                let errorObj = JSON.parse(errorText);
+                throw new Error(errorObj.error || "Failed to generate cards");
+            } catch (e) {
+                throw new Error(`Server Error: ${aiResponse.status}`);
+            }
+        }
+        
+        // FIX: The backend now returns a ready-to-use JSON Object. No JSON.parse needed.
+        const generatedCards = await aiResponse.json(); 
 
         // Step C: Save to SQLite
         statusDiv.innerText = "Saving cards to your database...";
@@ -102,7 +112,7 @@ function displayCard() {
 function flipCard() {
     if (!isFlipped) {
         document.getElementById('flashcard').classList.add('flipped');
-        document.getElementById('gradeButtons').style.display = 'block';
+        document.getElementById('gradeButtons').style.display = 'flex';
         isFlipped = true;
     }
 }
