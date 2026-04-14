@@ -2,57 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Flashcard Engine</title>
+    <title>CueCards</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
-    <h1>CueCards</h1>
-    
-    <div id="dashboardSection">
-        <h2>Your Decks</h2>
-        <div id="deckList" style="margin-bottom: 20px;"></div>
-        <button onclick="showUploadSection()">+ Create New Deck</button>
-    </div>
-
-    <div id="uploadSection" style="display: none;">
-        <h2>Create a Deck</h2>
-        <p>Drop a PDF to generate smart flashcards.</p>
+        <h1>CueCards</h1>
         
-        <input type="text" id="deckName" placeholder="Deck Name (e.g., Biology Ch 1)" style="margin-bottom: 10px; padding: 10px; width: 100%; box-sizing: border-box;">
-        <input type="file" id="pdfUpload" accept=".pdf">
-        
-        <div style="display: flex; gap: 10px; justify-content: center;">
-            <button onclick="showDashboardSection()" style="background: #6c757d;">Cancel</button>
-            <button onclick="processPDF()">Generate Cards</button>
+        <div id="dashboardSection">
+            <h2>Your Decks</h2>
+            <div id="deckList" style="margin-bottom: 20px;"></div>
+            <button class="btn-primary" onclick="showUploadSection()">+ Create New Deck</button>
         </div>
-        <div id="status"></div>
-    </div>
 
-    <div id="reviewSection" style="display: none;">
-        <h2 id="reviewTitle">Review Session</h2>
-        
-        <div class="card-container" onclick="flipCard()">
-            <div class="card" id="flashcard">
-                <div class="front" id="cardFront">Question will appear here</div>
-                <div class="back" id="cardBack">Answer will appear here</div>
+        <div id="deckMenuSection" style="display: none;">
+            <h2 id="menuDeckTitle" style="margin-bottom: 5px;">Deck Name</h2>
+            <p id="menuDeckStats" style="font-weight: 600; color: #3b82f6;">X Due / Y Total</p>
+            
+            <div class="menu-stack">
+                <button id="btnDaily" class="btn-primary" onclick="startMode('daily')">🔥 Daily Revision (SM-2)</button>
+                <button class="btn-warning" onclick="startMode('cram')">⚡ Cram Session (All Cards)</button>
+                <button class="btn-success" onclick="startMode('study')">📖 Study Mode (Flip Only)</button>
+                <button class="btn-secondary" onclick="showDashboardSection()">Back to Decks</button>
             </div>
         </div>
 
-        <div id="gradeButtons" style="display: none; margin-top: 20px;">
-            <p>How well did you remember this?</p>
-            <button onclick="submitGrade(0)">0 (Blank)</button>
-            <button onclick="submitGrade(1)">1 (Wrong)</button>
-            <button onclick="submitGrade(2)">2 (Hard)</button>
-            <button onclick="submitGrade(3)">3 (Okay)</button>
-            <button onclick="submitGrade(4)">4 (Good)</button>
-            <button onclick="submitGrade(5)">5 (Perfect)</button>
+        <div id="uploadSection" style="display: none;">
+            <h2>Create a Deck</h2>
+            <p>Drop a PDF to generate smart flashcards.</p>
+            <input type="text" id="deckName" placeholder="Deck Name (e.g., Biology Ch 1)">
+            <input type="file" id="pdfUpload" accept=".pdf">
+            <div class="button-row">
+                <button class="btn-secondary" onclick="showDashboardSection()">Cancel</button>
+                <button class="btn-primary" onclick="processPDF()">Generate Cards</button>
+            </div>
+            <div id="status"></div>
         </div>
-        
-        <div id="reviewStatus"></div>
-        <button onclick="showDashboardSection()" style="margin-top: 20px; background: #6c757d;">Back to Decks</button>
+
+        <div id="reviewSection" style="display: none;">
+            <h2 id="reviewTitle">Review Session</h2>
+            <div class="card-container" onclick="flipCard()">
+                <div class="card" id="flashcard">
+                    <div class="front" id="cardFront">Question</div>
+                    <div class="back" id="cardBack">Answer</div>
+                </div>
+            </div>
+
+            <div id="gradeButtons" style="display: none;">
+                <p style="margin-bottom: 15px; width: 100%;">How well did you remember this?</p>
+                <button onclick="submitGrade(0)">0 (Blank)</button>
+                <button onclick="submitGrade(1)">1 (Wrong)</button>
+                <button onclick="submitGrade(2)">2 (Hard)</button>
+                <button onclick="submitGrade(3)">3 (Okay)</button>
+                <button onclick="submitGrade(4)">4 (Good)</button>
+                <button onclick="submitGrade(5)">5 (Perfect)</button>
+            </div>
+            
+            <div id="studyButtons" class="button-row" style="display: none; margin-top: 25px;">
+                <button class="btn-secondary" onclick="prevCard()">&larr; Previous</button>
+                <button class="btn-primary" onclick="nextCard()">Next &rarr;</button>
+            </div>
+            
+            <div id="reviewStatus"></div>
+            <div class="button-row" style="margin-top: 20px;">
+                <button class="btn-secondary" onclick="showDashboardSection()">Exit Session</button>
+            </div>
+        </div>
     </div>
-</div>
-<script src="/static/js/main.js"></script>
+    <script src="/static/js/main.js"></script>
 </body>
 </html>

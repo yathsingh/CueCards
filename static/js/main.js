@@ -2,47 +2,66 @@ let currentDeck = [];
 let currentIndex = 0;
 let isFlipped = false;
 let currentDeckName = "";
+let currentMode = "daily"; // 'daily', 'cram', 'study'
 
 // --- NAVIGATION ---
+function hideAll() {
+    ['dashboardSection', 'deckMenuSection', 'uploadSection', 'reviewSection'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+}
+
 function showDashboardSection() {
-    document.getElementById('uploadSection').style.display = 'none';
-    document.getElementById('reviewSection').style.display = 'none';
+    hideAll();
     document.getElementById('dashboardSection').style.display = 'block';
-    document.getElementById('status').innerText = "";
     loadDashboard();
 }
 
 function showUploadSection() {
-    document.getElementById('dashboardSection').style.display = 'none';
+    hideAll();
     document.getElementById('uploadSection').style.display = 'block';
     document.getElementById('deckName').value = "";
     document.getElementById('pdfUpload').value = "";
+    document.getElementById('status').innerText = "";
+}
+
+function openDeckMenu(deckName, dueCards, totalCards) {
+    hideAll();
+    currentDeckName = deckName;
+    document.getElementById('deckMenuSection').style.display = 'block';
+    document.getElementById('menuDeckTitle').innerText = deckName;
+    document.getElementById('menuDeckStats').innerText = `${dueCards} Cards Due  |  ${totalCards} Total Cards`;
+
+    const btnDaily = document.getElementById('btnDaily');
+    if (dueCards > 0) {
+        btnDaily.disabled = false;
+        btnDaily.style.opacity = '1';
+        btnDaily.innerHTML = `🔥 Daily Revision (${dueCards} Due)`;
+    } else {
+        btnDaily.disabled = true;
+        btnDaily.style.opacity = '0.5';
+        btnDaily.innerHTML = `🔥 Daily Revision (All Caught Up!)`;
+    }
 }
 
 // --- DASHBOARD PIPELINE ---
 async function loadDashboard() {
     const deckListDiv = document.getElementById('deckList');
     deckListDiv.innerHTML = "Loading decks...";
-    
     try {
         const response = await fetch('/get_decks');
         const decks = await response.json();
         
-        if (decks.length === 0) {
-            deckListDiv.innerHTML = "<p>No decks yet. Create one!</p>";
-            return;
-        }
+        if (decks.length === 0) { deckListDiv.innerHTML = "<p>No decks yet. Create one!</p>"; return; }
 
         deckListDiv.innerHTML = "";
         decks.forEach((deck, index) => {
             const btn = document.createElement('button');
-            btn.className = 'deck-btn'; // Use new CSS class
-            
-            // Stagger animation for loading
+            btn.className = 'deck-btn';
             btn.style.animation = `slideInRight 0.4s ease forwards ${index * 0.1}s`;
             btn.style.opacity = "0"; 
 
-            let badgeHtml = deck.due_cards > 0 ? `<span class="deck-due-badge">${deck.due_cards} Due</span>` : `<span style="color:#94a3b8; font-size: 0.9em;">All Caught Up</span>`;
+            let badgeHtml = deck.due_cards > 0 ? `<span class="deck-due-badge">${deck.due_cards} Due</span>` : `<span style="color:#94a3b8; font-size: 0.9em; font-weight:700;">Caught Up</span>`;
             
             btn.innerHTML = `
                 <div>
@@ -51,18 +70,11 @@ async function loadDashboard() {
                 </div>
                 ${badgeHtml}
             `;
-            
-            if (deck.due_cards > 0) {
-                btn.onclick = () => startReview(deck.deck_name);
-            } else {
-                btn.style.opacity = "0.7";
-                btn.onclick = () => alert("You're all caught up on this deck! Come back tomorrow.");
-            }
+            // Trigger Menu Instead of direct review
+            btn.onclick = () => openDeckMenu(deck.deck_name, deck.due_cards, deck.total_cards);
             deckListDiv.appendChild(btn);
         });
-    } catch (e) {
-        deckListDiv.innerHTML = "Error loading decks.";
-    }
+    } catch (e) { deckListDiv.innerHTML = "Error loading decks."; }
 }
 
 // --- 1. THE INGESTION PIPELINE ---
@@ -80,71 +92,65 @@ async function processPDF() {
     try {
         statusDiv.innerText = "Extracting text from PDF...";
         let response = await fetch('/upload', { method: 'POST', body: formData });
-        if (!response.ok) throw new Error("Server communication failed.");
+        if (!response.ok) throw new Error("Server failed.");
         let data = await response.json();
 
-        statusDiv.innerText = "AI is studying the text and generating cards...";
+        statusDiv.innerText = "AI is generating cards...";
         let aiResponse = await fetch('/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: data.preview })
         });
         
         if (!aiResponse.ok) {
-            let errorObj = await aiResponse.json();
-            throw new Error(errorObj.error || "Generation failed.");
+            let err = await aiResponse.json();
+            throw new Error(err.error || "Generation failed.");
         }
         
         const generatedCards = await aiResponse.json(); 
 
         statusDiv.innerText = "Saving to database...";
         await fetch('/save_cards', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deck_name: deckNameInput, cards: generatedCards }) 
         });
 
         statusDiv.innerText = "Success! Routing to dashboard...";
         setTimeout(showDashboardSection, 1000);
-
-    } catch (error) {
-        statusDiv.innerText = "Error: " + error.message;
-        if (error.message === "Failed to fetch") {
-            statusDiv.innerText = "Error: Cannot connect to server. Is your Flask app running?";
-        }
-    }
+    } catch (error) { statusDiv.innerText = "Error: " + error.message; }
 }
 
-// --- 2. THE REVIEW PIPELINE ---
-async function startReview(deckName) {
-    currentDeckName = deckName;
-    document.getElementById('dashboardSection').style.display = 'none';
+// --- 2. THE MODES PIPELINE ---
+async function startMode(mode) {
+    currentMode = mode;
+    hideAll();
     document.getElementById('reviewSection').style.display = 'block';
-    document.getElementById('reviewTitle').innerText = `Reviewing: ${deckName}`;
-    document.getElementById('reviewStatus').innerText = "Fetching due cards...";
+    
+    let titleStr = mode === 'daily' ? 'Daily Revision' : mode === 'cram' ? 'Cram Session' : 'Study Mode';
+    document.getElementById('reviewTitle').innerText = `${currentDeckName} - ${titleStr}`;
+    document.getElementById('reviewStatus').innerText = "Fetching cards...";
     document.querySelector('.card-container').style.display = 'block';
 
     try {
-        const response = await fetch(`/get_due_cards?deck=${encodeURIComponent(deckName)}`);
+        const endpoint = mode === 'daily' ? '/get_due_cards' : '/get_all_cards';
+        const response = await fetch(`${endpoint}?deck=${encodeURIComponent(currentDeckName)}`);
         currentDeck = await response.json();
 
         if (currentDeck.length === 0) {
-            document.getElementById('reviewStatus').innerText = "You're all caught up for today!";
+            document.getElementById('reviewStatus').innerText = "No cards found.";
             document.querySelector('.card-container').style.display = 'none';
         } else {
             currentIndex = 0;
             displayCard();
         }
-    } catch (error) {
-        console.error("Error fetching cards:", error);
-    }
+    } catch (error) { console.error("Error fetching cards:", error); }
 }
 
 function displayCard() {
-    if (currentIndex >= currentDeck.length) {
-        document.getElementById('reviewStatus').innerText = "Session complete! Great job.";
+    if (currentIndex >= currentDeck.length || currentIndex < 0) {
+        document.getElementById('reviewStatus').innerText = "You have reached the end of the deck.";
         document.querySelector('.card-container').style.display = 'none';
         document.getElementById('gradeButtons').style.display = 'none';
+        document.getElementById('studyButtons').style.display = 'none';
         return;
     }
 
@@ -156,52 +162,61 @@ function displayCard() {
     const flashcardContainer = document.querySelector('.card-container');
     const flashcard = document.getElementById('flashcard');
     
-    // Animate Card Entrance
+    flashcardContainer.style.display = 'block';
     flashcardContainer.classList.add('slide-in');
     setTimeout(() => flashcardContainer.classList.remove('slide-in'), 400);
 
-    // Reset Flip State
     flashcard.classList.remove('flipped');
     isFlipped = false;
     document.getElementById('gradeButtons').style.display = 'none';
+    
+    // Show Study Buttons immediately if in Study Mode
+    document.getElementById('studyButtons').style.display = currentMode === 'study' ? 'flex' : 'none';
 }
 
 function flipCard() {
     if (!isFlipped) {
         document.getElementById('flashcard').classList.add('flipped');
-        document.getElementById('gradeButtons').style.display = 'flex';
         isFlipped = true;
+        // Only show grading buttons if NOT in study mode
+        if (currentMode !== 'study') {
+            document.getElementById('gradeButtons').style.display = 'block';
+        }
     }
 }
 
-// --- 3. THE SM-2 GRADING & EXIT ANIMATION ---
+// --- 3. INTERACTIONS ---
 async function submitGrade(grade) {
-    const cardId = currentDeck[currentIndex].id;
     document.getElementById('gradeButtons').style.display = 'none';
 
-    try {
-        // Send grade to backend asynchronously 
+    // ONLY save to database if it is Daily Revision
+    if (currentMode === 'daily') {
+        const cardId = currentDeck[currentIndex].id;
         fetch(`/review_card/${cardId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ grade: grade })
         });
-        
-        // Trigger Exit Animation
-        const flashcardContainer = document.querySelector('.card-container');
-        flashcardContainer.classList.add('slide-out');
-
-        // Wait for animation to finish, then load next card
-        setTimeout(() => {
-            flashcardContainer.classList.remove('slide-out');
-            currentIndex++;
-            displayCard();
-        }, 350);
-
-    } catch (error) {
-        console.error("Error submitting grade:", error);
-        document.getElementById('reviewStatus').innerText = "Error saving progress.";
     }
+
+    animateToNextCard();
+}
+
+function nextCard() { animateToNextCard(); }
+function prevCard() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        displayCard();
+    }
+}
+
+function animateToNextCard() {
+    const flashcardContainer = document.querySelector('.card-container');
+    flashcardContainer.classList.add('slide-out');
+    setTimeout(() => {
+        flashcardContainer.classList.remove('slide-out');
+        currentIndex++;
+        displayCard();
+    }, 350);
 }
 
 window.onload = loadDashboard;
