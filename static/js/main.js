@@ -16,7 +16,6 @@ async function processPDF() {
     formData.append('file', fileInput.files[0]);
 
     try {
-        // Step A: Extract Text
         statusDiv.innerText = "Extracting text from PDF...";
         let response = await fetch('/upload', { method: 'POST', body: formData });
         if (!response.ok) {
@@ -27,7 +26,6 @@ async function processPDF() {
         
         if (data.error) throw new Error(data.error);
 
-        // Step B: Generate Cards via Gemini
         statusDiv.innerText = "AI is studying the text and generating cards (this takes a few seconds)...";
         let aiResponse = await fetch('/generate', {
             method: 'POST',
@@ -45,10 +43,8 @@ async function processPDF() {
             }
         }
         
-        // FIX: The backend now returns a ready-to-use JSON Object. No JSON.parse needed.
         const generatedCards = await aiResponse.json(); 
 
-        // Step C: Save to SQLite
         statusDiv.innerText = "Saving cards to your database...";
         await fetch('/save_cards', {
             method: 'POST',
@@ -57,13 +53,13 @@ async function processPDF() {
         });
 
         statusDiv.innerText = "Cards generated and saved successfully!";
-        
-        // Automatically start reviewing
         setTimeout(startReview, 1500);
 
     } catch (error) {
         statusDiv.innerText = "Error: " + error.message;
-        console.error(error);
+        if (error.message === "Failed to fetch") {
+            statusDiv.innerText = "Error: Cannot connect to server. Is your Flask app running?";
+        }
     }
 }
 
@@ -102,7 +98,6 @@ function displayCard() {
     document.getElementById('cardBack').innerText = card.answer;
     document.getElementById('reviewStatus').innerText = `Card ${currentIndex + 1} of ${currentDeck.length} (${card.card_type})`;
     
-    // Reset state for the new card
     const flashcard = document.getElementById('flashcard');
     flashcard.classList.remove('flipped');
     isFlipped = false;
@@ -121,7 +116,6 @@ function flipCard() {
 async function submitGrade(grade) {
     const cardId = currentDeck[currentIndex].id;
     
-    // Hide buttons while processing
     document.getElementById('gradeButtons').style.display = 'none';
 
     try {
@@ -131,7 +125,6 @@ async function submitGrade(grade) {
             body: JSON.stringify({ grade: grade })
         });
         
-        // Move to next card
         currentIndex++;
         displayCard();
 
