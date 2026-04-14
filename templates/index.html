@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flashcard Engine</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+    <h1>CueCards</h1>
+    
+    <div id="uploadSection">
+        <p>Drop a PDF to generate smart flashcards.</p>
+        <input type="file" id="pdfUpload" accept=".pdf">
+        <button onclick="processPDF()">Generate Cards</button>
+        <div id="status"></div>
+    </div>
+
+    <div id="reviewSection" style="display: none;">
+        <h2>Review Session</h2>
+        
+        <div class="card-container" onclick="flipCard()">
+            <div class="card" id="flashcard">
+                <div class="front" id="cardFront">Question will appear here</div>
+                <div class="back" id="cardBack">Answer will appear here</div>
+            </div>
+        </div>
+
+        <div id="gradeButtons" style="display: none; margin-top: 20px;">
+            <p>How well did you remember this?</p>
+            <button onclick="submitGrade(0)">0 (Blank)</button>
+            <button onclick="submitGrade(1)">1 (Wrong)</button>
+            <button onclick="submitGrade(2)">2 (Hard)</button>
+            <button onclick="submitGrade(3)">3 (Okay)</button>
+            <button onclick="submitGrade(4)">4 (Good)</button>
+            <button onclick="submitGrade(5)">5 (Perfect)</button>
+        </div>
+        
+        <div id="reviewStatus"></div>
+    </div>
+</div>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

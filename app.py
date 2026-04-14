@@ -1,17 +1,48 @@
-import sqlite3
-from datetime import datetime, timedelta
 import os
 import fitz  # PyMuPDF
+import sqlite3
+from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template
 
+# Initialize environment and AI client
 load_dotenv()
+client = genai.Client()
 
-# The new client automatically picks up GEMINI_API_KEY from the environment
-client = genai.Client() 
 app = Flask(__name__)
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# --- DATABASE HELPER ---
+def get_db_connection():
+    conn = sqlite3.connect('database/flashcards.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+# --- ROUTES ---
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files['file']
+    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(filepath)
+
+    # Extract text from PDF
+    text = ""
+    with fitz.open(filepath) as doc:
+        for page in doc:
+            text += page.get_text()
+
+    return jsonify({"message": "Text extracted successfully!", "preview": text[:4000]})
 
 @app.route('/generate', methods=['POST'])
 def generate_cards():
@@ -34,14 +65,12 @@ def generate_cards():
       {{"question": "...", "answer": "...", "type": "Concept/Definition/Pitfall"}}
     ]
 
-    Text: {raw_text[:4000]} 
+    Text: {raw_text} 
     """
 
-    # Using the new models.generate_content syntax and gemini-3-flash
     response = client.models.generate_content(
         model='gemini-3-flash-preview',
         contents=prompt,
-        # We can enforce JSON output via the new types config!
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
         ),
@@ -49,13 +78,6 @@ def generate_cards():
     
     return jsonify(response.text)
 
-# --- DATABASE HELPER ---
-def get_db_connection():
-    conn = sqlite3.connect('database/flashcards.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# --- 1. SAVE NEW CARDS ---
 @app.route('/save_cards', methods=['POST'])
 def save_cards():
     cards = request.json.get('cards', [])
@@ -66,17 +88,15 @@ def save_cards():
         cursor.execute('''
             INSERT INTO cards (question, answer, card_type)
             VALUES (?, ?, ?)
-        ''', (card['question'], card['answer'], card.get('type', 'Concept')))
+        ''', (card.get('question', ''), card.get('answer', ''), card.get('type', 'Concept')))
         
     conn.commit()
     conn.close()
     return jsonify({"message": f"{len(cards)} cards saved to database!"})
 
-# --- 2. FETCH DUE CARDS ---
 @app.route('/get_due_cards', methods=['GET'])
 def get_due_cards():
     conn = get_db_connection()
-    # Fetch cards where the review date is today or earlier
     due_cards = conn.execute('''
         SELECT * FROM cards 
         WHERE next_review_date <= date('now')
@@ -85,10 +105,9 @@ def get_due_cards():
     
     return jsonify([dict(card) for card in due_cards])
 
-# --- 3. THE SM-2 ENGINE ---
 @app.route('/review_card/<int:card_id>', methods=['POST'])
 def review_card(card_id):
-    grade = request.json.get('grade') # 0 to 5
+    grade = request.json.get('grade')
     if grade is None or not (0 <= grade <= 5):
         return jsonify({"error": "Invalid grade (must be 0-5)"}), 400
 
@@ -98,13 +117,11 @@ def review_card(card_id):
     if not card:
         return jsonify({"error": "Card not found"}), 404
 
-    # Extract current stats
     repetition = card['repetition']
     interval = card['interval']
     ef = card['ease_factor']
 
-    # SM-2 Logic
-    if grade >= 3: # Correct recall
+    if grade >= 3:
         if repetition == 0:
             interval = 1
         elif repetition == 1:
@@ -112,19 +129,16 @@ def review_card(card_id):
         else:
             interval = round(interval * ef)
         repetition += 1
-    else: # Failed recall
+    else:
         repetition = 0
         interval = 1
 
-    # Update Ease Factor
     ef = ef + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02))
     if ef < 1.3:
         ef = 1.3
 
-    # Calculate next review date
     next_review_date = datetime.now() + timedelta(days=interval)
 
-    # Save back to database
     conn.execute('''
         UPDATE cards 
         SET repetition = ?, interval = ?, ease_factor = ?, next_review_date = ?
