@@ -1,6 +1,7 @@
 import os
 import fitz  # PyMuPDF
 import sqlite3
+import json
 from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
@@ -22,7 +23,6 @@ def get_db_connection():
     return conn
 
 # --- ROUTES ---
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -36,7 +36,6 @@ def upload_pdf():
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
 
-    # Extract text from PDF
     text = ""
     with fitz.open(filepath) as doc:
         for page in doc:
@@ -69,7 +68,6 @@ def generate_cards():
     """
 
     try:
-        # Upgraded to the supported 2.5 model
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -77,11 +75,20 @@ def generate_cards():
                 response_mime_type="application/json",
             ),
         )
-        return jsonify(response.text)
+        
+        cleaned_text = response.text.replace('```json', '').replace('```', '').strip()
+        cards_data = json.loads(cleaned_text)
+        return jsonify(cards_data)
+        
     except Exception as e:
-        # Safe error handling to prevent frontend HTML crashes
-        print(f"API Error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        error_msg = str(e)
+        print(f"API Error: {error_msg}")
+        
+        # FIX: Gracefully handle the Rate Limit / Quota Exceeded error
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            return jsonify({"error": "AI Rate Limit Reached! Please wait 60 seconds and try again."}), 429
+            
+        return jsonify({"error": error_msg}), 500
 
 @app.route('/save_cards', methods=['POST'])
 def save_cards():
