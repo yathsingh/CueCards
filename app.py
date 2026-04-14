@@ -68,15 +68,20 @@ def generate_cards():
     Text: {raw_text} 
     """
 
-    response = client.models.generate_content(
-        model='gemini-3-flash-preview',
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-        ),
-    )
-    
-    return jsonify(response.text)
+    try:
+        # Upgraded to the supported 2.5 model
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        return jsonify(response.text)
+    except Exception as e:
+        # Safe error handling to prevent frontend HTML crashes
+        print(f"API Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/save_cards', methods=['POST'])
 def save_cards():
