@@ -1,8 +1,40 @@
 let currentDeck = [];
 let currentIndex = 0;
 let isFlipped = false;
+let hasFlippedOnce = false; // Tracks if grade buttons should be revealed
 let currentDeckName = "";
-let currentMode = "daily"; // 'daily', 'cram', 'study'
+let currentMode = "daily";
+
+// --- GAMIFICATION PIPELINE ---
+async function fetchCoins() {
+    try {
+        const response = await fetch('/get_coins');
+        const data = await response.json();
+        document.getElementById('coinCount').innerText = data.coins;
+    } catch (e) { console.error("Failed to load coins", e); }
+}
+
+function updateCoins(newAmount) {
+    const coinEl = document.getElementById('coinCount');
+    coinEl.innerText = newAmount;
+    coinEl.parentElement.style.transform = 'scale(1.15)';
+    setTimeout(() => coinEl.parentElement.style.transform = 'scale(1)', 200);
+}
+
+// Custom Toast function to replace standard browser alert
+function showToast(message) {
+    const toast = document.getElementById('toastNotification');
+    const toastMsg = document.getElementById('toastMessage');
+    toastMsg.innerText = message;
+    
+    // Slide it in
+    toast.classList.add('show');
+    
+    // Slide it out gracefully after 3.5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3500);
+}
 
 // --- NAVIGATION ---
 function hideAll() {
@@ -70,7 +102,6 @@ async function loadDashboard() {
                 </div>
                 ${badgeHtml}
             `;
-            // Trigger Menu Instead of direct review
             btn.onclick = () => openDeckMenu(deck.deck_name, deck.due_cards, deck.total_cards);
             deckListDiv.appendChild(btn);
         });
@@ -145,12 +176,28 @@ async function startMode(mode) {
     } catch (error) { console.error("Error fetching cards:", error); }
 }
 
-function displayCard() {
+async function displayCard() {
     if (currentIndex >= currentDeck.length || currentIndex < 0) {
         document.getElementById('reviewStatus').innerText = "You have reached the end of the deck.";
         document.querySelector('.card-container').style.display = 'none';
         document.getElementById('gradeButtons').style.display = 'none';
         document.getElementById('studyButtons').style.display = 'none';
+
+        // --- GAMIFICATION: Check for daily reward ---
+        if (currentMode === 'daily' && currentDeck.length > 0) {
+            try {
+                const res = await fetch('/complete_review', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deck_name: currentDeckName })
+                });
+                const rewardData = await res.json();
+                if (rewardData.rewarded) {
+                    updateCoins(rewardData.coins);
+                    // Use the custom Toast instead of the alert!
+                    setTimeout(() => showToast(`Mission Accomplished! +5 Coins for completing your daily revision.`), 100);
+                }
+            } catch (e) { console.error("Reward error", e); }
+        }
         return;
     }
 
@@ -166,21 +213,31 @@ function displayCard() {
     flashcardContainer.classList.add('slide-in');
     setTimeout(() => flashcardContainer.classList.remove('slide-in'), 400);
 
+    // Reset State for the new card
     flashcard.classList.remove('flipped');
     isFlipped = false;
+    hasFlippedOnce = false;
     document.getElementById('gradeButtons').style.display = 'none';
     
-    // Show Study Buttons immediately if in Study Mode
     document.getElementById('studyButtons').style.display = currentMode === 'study' ? 'flex' : 'none';
 }
 
 function flipCard() {
-    if (!isFlipped) {
-        document.getElementById('flashcard').classList.add('flipped');
-        isFlipped = true;
-        // Only show grading buttons if NOT in study mode
+    const flashcard = document.getElementById('flashcard');
+    
+    // Toggle flip state
+    isFlipped = !isFlipped;
+    if (isFlipped) {
+        flashcard.classList.add('flipped');
+    } else {
+        flashcard.classList.remove('flipped');
+    }
+
+    // Only reveal buttons on the first flip (if not in study mode)
+    if (!hasFlippedOnce) {
+        hasFlippedOnce = true;
         if (currentMode !== 'study') {
-            document.getElementById('gradeButtons').style.display = 'block';
+            document.getElementById('gradeButtons').style.display = 'flex';
         }
     }
 }
@@ -189,7 +246,6 @@ function flipCard() {
 async function submitGrade(grade) {
     document.getElementById('gradeButtons').style.display = 'none';
 
-    // ONLY save to database if it is Daily Revision
     if (currentMode === 'daily') {
         const cardId = currentDeck[currentIndex].id;
         fetch(`/review_card/${cardId}`, {
@@ -197,7 +253,6 @@ async function submitGrade(grade) {
             body: JSON.stringify({ grade: grade })
         });
     }
-
     animateToNextCard();
 }
 
@@ -219,4 +274,8 @@ function animateToNextCard() {
     }, 350);
 }
 
-window.onload = loadDashboard;
+// Initialize on page load
+window.onload = () => {
+    loadDashboard();
+    fetchCoins();
+};

@@ -151,3 +151,35 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     font-size: 14px; box-shadow: none; padding: 12px;
 }
 #gradeButtons button:hover { background: #475569; transform: translateY(-2px); }
+
+/* --- CUSTOM TOAST NOTIFICATION --- */
+.toast {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    /* Start slightly higher and transparent for the drop-in effect */
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(16, 185, 129, 0.9); /* Success Green Glassmorphism */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy spring transition */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0); /* Drops into place smoothly */
+}

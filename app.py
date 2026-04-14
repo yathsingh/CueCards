@@ -14,7 +14,6 @@ app.logger.setLevel(logging.INFO)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# --- TOGGLE THIS: True for Ollama (Local), False for Gemini (Cloud) ---
 USE_LOCAL_AI = False
 
 if not USE_LOCAL_AI:
@@ -32,12 +31,66 @@ def get_db_connection():
     os.makedirs('database', exist_ok=True)
     conn = sqlite3.connect('database/flashcards.db')
     conn.row_factory = sqlite3.Row
+    
+    # --- AUTO-MIGRATE GAMIFICATION TABLES ---
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS user_stats (
+            id INTEGER PRIMARY KEY,
+            coins INTEGER DEFAULT 0
+        )
+    ''')
+    # Seed the stats row if empty
+    if not conn.execute('SELECT * FROM user_stats WHERE id = 1').fetchone():
+        conn.execute('INSERT INTO user_stats (id, coins) VALUES (1, 0)')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS daily_rewards (
+            deck_name TEXT,
+            date TEXT,
+            PRIMARY KEY (deck_name, date)
+        )
+    ''')
+    conn.commit()
     return conn
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# --- NEW GAMIFICATION ROUTES ---
+@app.route('/get_coins', methods=['GET'])
+def get_coins():
+    try:
+        conn = get_db_connection()
+        coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
+        conn.close()
+        return jsonify({"coins": coins})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/complete_review', methods=['POST'])
+def complete_review():
+    deck_name = request.json.get('deck_name')
+    today = datetime.now().strftime('%Y-%m-%d')
+    try:
+        conn = get_db_connection()
+        # Check if already rewarded for this deck today
+        rewarded = conn.execute('SELECT * FROM daily_rewards WHERE deck_name = ? AND date = ?', (deck_name, today)).fetchone()
+        
+        if not rewarded:
+            conn.execute('INSERT INTO daily_rewards (deck_name, date) VALUES (?, ?)', (deck_name, today))
+            conn.execute('UPDATE user_stats SET coins = coins + 5 WHERE id = 1')
+            conn.commit()
+            coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
+            conn.close()
+            return jsonify({"rewarded": True, "coins": coins, "message": "Earned 5 coins!"})
+        else:
+            conn.close()
+            return jsonify({"rewarded": False, "message": "Already earned today."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ... (Keep all existing upload, generate, save_cards, get_decks, get_due_cards, get_all_cards, and review_card routes exactly the same as before) ...
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
     if 'file' not in request.files: return jsonify({"error": "No file uploaded"}), 400
@@ -80,7 +133,7 @@ def generate_cards():
         if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
         try:
             response = client.models.generate_content(
-                model='gemini-3-flash-preview',
+                model='gemini-1.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )
@@ -127,7 +180,6 @@ def get_due_cards():
         return jsonify([dict(card) for card in cards])
     except Exception as e: return jsonify({"error": "Failed to fetch cards."}), 500
 
-# NEW ROUTE: For Cram & Study Modes
 @app.route('/get_all_cards', methods=['GET'])
 def get_all_cards():
     deck_name = request.args.get('deck')
