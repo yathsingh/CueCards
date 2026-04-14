@@ -1,16 +1,78 @@
 let currentDeck = [];
 let currentIndex = 0;
 let isFlipped = false;
+let currentDeckName = "";
+
+// --- NAVIGATION ---
+function showDashboardSection() {
+    document.getElementById('uploadSection').style.display = 'none';
+    document.getElementById('reviewSection').style.display = 'none';
+    document.getElementById('dashboardSection').style.display = 'block';
+    document.getElementById('status').innerText = "";
+    loadDashboard();
+}
+
+function showUploadSection() {
+    document.getElementById('dashboardSection').style.display = 'none';
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('deckName').value = "";
+    document.getElementById('pdfUpload').value = "";
+}
+
+// --- DASHBOARD PIPELINE ---
+async function loadDashboard() {
+    const deckListDiv = document.getElementById('deckList');
+    deckListDiv.innerHTML = "Loading decks...";
+    
+    try {
+        const response = await fetch('/get_decks');
+        const decks = await response.json();
+        
+        if (decks.length === 0) {
+            deckListDiv.innerHTML = "<p>No decks yet. Create one!</p>";
+            return;
+        }
+
+        deckListDiv.innerHTML = "";
+        decks.forEach((deck, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'deck-btn'; // Use new CSS class
+            
+            // Stagger animation for loading
+            btn.style.animation = `slideInRight 0.4s ease forwards ${index * 0.1}s`;
+            btn.style.opacity = "0"; 
+
+            let badgeHtml = deck.due_cards > 0 ? `<span class="deck-due-badge">${deck.due_cards} Due</span>` : `<span style="color:#94a3b8; font-size: 0.9em;">All Caught Up</span>`;
+            
+            btn.innerHTML = `
+                <div>
+                    <div style="font-size: 1.1em; font-weight: 700;">${deck.deck_name}</div>
+                    <div style="font-size: 0.85em; color: #64748b; margin-top: 4px;">Total Cards: ${deck.total_cards}</div>
+                </div>
+                ${badgeHtml}
+            `;
+            
+            if (deck.due_cards > 0) {
+                btn.onclick = () => startReview(deck.deck_name);
+            } else {
+                btn.style.opacity = "0.7";
+                btn.onclick = () => alert("You're all caught up on this deck! Come back tomorrow.");
+            }
+            deckListDiv.appendChild(btn);
+        });
+    } catch (e) {
+        deckListDiv.innerHTML = "Error loading decks.";
+    }
+}
 
 // --- 1. THE INGESTION PIPELINE ---
 async function processPDF() {
     const fileInput = document.getElementById('pdfUpload');
+    const deckNameInput = document.getElementById('deckName').value.trim();
     const statusDiv = document.getElementById('status');
 
-    if (!fileInput.files.length) {
-        statusDiv.innerText = "Please select a PDF first!";
-        return;
-    }
+    if (!deckNameInput) { statusDiv.innerText = "Please give your deck a name!"; return; }
+    if (!fileInput.files.length) { statusDiv.innerText = "Please select a PDF first!"; return; }
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
@@ -18,15 +80,10 @@ async function processPDF() {
     try {
         statusDiv.innerText = "Extracting text from PDF...";
         let response = await fetch('/upload', { method: 'POST', body: formData });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server Error: ${response.status} - ${errorText}`);
-        }
+        if (!response.ok) throw new Error("Server communication failed.");
         let data = await response.json();
-        
-        if (data.error) throw new Error(data.error);
 
-        statusDiv.innerText = "AI is studying the text and generating cards (this takes a few seconds)...";
+        statusDiv.innerText = "AI is studying the text and generating cards...";
         let aiResponse = await fetch('/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -34,26 +91,21 @@ async function processPDF() {
         });
         
         if (!aiResponse.ok) {
-            let errorText = await aiResponse.text();
-            try {
-                let errorObj = JSON.parse(errorText);
-                throw new Error(errorObj.error || "Failed to generate cards");
-            } catch (e) {
-                throw new Error(`Server Error: ${aiResponse.status}`);
-            }
+            let errorObj = await aiResponse.json();
+            throw new Error(errorObj.error || "Generation failed.");
         }
         
         const generatedCards = await aiResponse.json(); 
 
-        statusDiv.innerText = "Saving cards to your database...";
+        statusDiv.innerText = "Saving to database...";
         await fetch('/save_cards', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cards: generatedCards })
+            body: JSON.stringify({ deck_name: deckNameInput, cards: generatedCards }) 
         });
 
-        statusDiv.innerText = "Cards generated and saved successfully!";
-        setTimeout(startReview, 1500);
+        statusDiv.innerText = "Success! Routing to dashboard...";
+        setTimeout(showDashboardSection, 1000);
 
     } catch (error) {
         statusDiv.innerText = "Error: " + error.message;
@@ -64,13 +116,16 @@ async function processPDF() {
 }
 
 // --- 2. THE REVIEW PIPELINE ---
-async function startReview() {
-    document.getElementById('uploadSection').style.display = 'none';
+async function startReview(deckName) {
+    currentDeckName = deckName;
+    document.getElementById('dashboardSection').style.display = 'none';
     document.getElementById('reviewSection').style.display = 'block';
+    document.getElementById('reviewTitle').innerText = `Reviewing: ${deckName}`;
     document.getElementById('reviewStatus').innerText = "Fetching due cards...";
+    document.querySelector('.card-container').style.display = 'block';
 
     try {
-        const response = await fetch('/get_due_cards');
+        const response = await fetch(`/get_due_cards?deck=${encodeURIComponent(deckName)}`);
         currentDeck = await response.json();
 
         if (currentDeck.length === 0) {
@@ -98,7 +153,14 @@ function displayCard() {
     document.getElementById('cardBack').innerText = card.answer;
     document.getElementById('reviewStatus').innerText = `Card ${currentIndex + 1} of ${currentDeck.length} (${card.card_type})`;
     
+    const flashcardContainer = document.querySelector('.card-container');
     const flashcard = document.getElementById('flashcard');
+    
+    // Animate Card Entrance
+    flashcardContainer.classList.add('slide-in');
+    setTimeout(() => flashcardContainer.classList.remove('slide-in'), 400);
+
+    // Reset Flip State
     flashcard.classList.remove('flipped');
     isFlipped = false;
     document.getElementById('gradeButtons').style.display = 'none';
@@ -112,24 +174,34 @@ function flipCard() {
     }
 }
 
-// --- 3. THE SM-2 GRADING ---
+// --- 3. THE SM-2 GRADING & EXIT ANIMATION ---
 async function submitGrade(grade) {
     const cardId = currentDeck[currentIndex].id;
-    
     document.getElementById('gradeButtons').style.display = 'none';
 
     try {
-        await fetch(`/review_card/${cardId}`, {
+        // Send grade to backend asynchronously 
+        fetch(`/review_card/${cardId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ grade: grade })
         });
         
-        currentIndex++;
-        displayCard();
+        // Trigger Exit Animation
+        const flashcardContainer = document.querySelector('.card-container');
+        flashcardContainer.classList.add('slide-out');
+
+        // Wait for animation to finish, then load next card
+        setTimeout(() => {
+            flashcardContainer.classList.remove('slide-out');
+            currentIndex++;
+            displayCard();
+        }, 350);
 
     } catch (error) {
         console.error("Error submitting grade:", error);
         document.getElementById('reviewStatus').innerText = "Error saving progress.";
     }
 }
+
+window.onload = loadDashboard;

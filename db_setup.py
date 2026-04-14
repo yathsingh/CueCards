@@ -8,10 +8,10 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Create the Cards Table with SM-2 Tracking Columns
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS cards (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deck_name TEXT NOT NULL,
             question TEXT NOT NULL,
             answer TEXT NOT NULL,
             card_type TEXT,
@@ -26,7 +26,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("Database initialized successfully!")
+    print("Database initialized successfully with Deck Management!")
 
 if __name__ == "__main__":
     init_db()

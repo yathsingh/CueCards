@@ -9,15 +9,28 @@
     <div class="container">
     <h1>CueCards</h1>
     
-    <div id="uploadSection">
+    <div id="dashboardSection">
+        <h2>Your Decks</h2>
+        <div id="deckList" style="margin-bottom: 20px;"></div>
+        <button onclick="showUploadSection()">+ Create New Deck</button>
+    </div>
+
+    <div id="uploadSection" style="display: none;">
+        <h2>Create a Deck</h2>
         <p>Drop a PDF to generate smart flashcards.</p>
+        
+        <input type="text" id="deckName" placeholder="Deck Name (e.g., Biology Ch 1)" style="margin-bottom: 10px; padding: 10px; width: 100%; box-sizing: border-box;">
         <input type="file" id="pdfUpload" accept=".pdf">
-        <button onclick="processPDF()">Generate Cards</button>
+        
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="showDashboardSection()" style="background: #6c757d;">Cancel</button>
+            <button onclick="processPDF()">Generate Cards</button>
+        </div>
         <div id="status"></div>
     </div>
 
     <div id="reviewSection" style="display: none;">
-        <h2>Review Session</h2>
+        <h2 id="reviewTitle">Review Session</h2>
         
         <div class="card-container" onclick="flipCard()">
             <div class="card" id="flashcard">
@@ -37,6 +50,7 @@
         </div>
         
         <div id="reviewStatus"></div>
+        <button onclick="showDashboardSection()" style="margin-top: 20px; background: #6c757d;">Back to Decks</button>
     </div>
 </div>
 <script src="/static/js/main.js"></script>

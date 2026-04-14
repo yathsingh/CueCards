@@ -118,29 +118,57 @@ def generate_cards():
 
 @app.route('/save_cards', methods=['POST'])
 def save_cards():
-    cards = request.json.get('cards', [])
+    data = request.json
+    cards = data.get('cards', [])
+    deck_name = data.get('deck_name', 'Untitled Deck') # New parameter
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         for card in cards:
             cursor.execute('''
-                INSERT INTO cards (question, answer, card_type)
-                VALUES (?, ?, ?)
-            ''', (card.get('question', ''), card.get('answer', ''), card.get('type', 'Concept')))
+                INSERT INTO cards (deck_name, question, answer, card_type)
+                VALUES (?, ?, ?, ?)
+            ''', (deck_name, card.get('question', ''), card.get('answer', ''), card.get('type', 'Concept')))
         conn.commit()
         conn.close()
-        return jsonify({"message": f"{len(cards)} cards saved!"})
+        return jsonify({"message": f"{len(cards)} cards saved to {deck_name}!"})
     except Exception as e:
         app.logger.error(f"Database error: {e}")
         return jsonify({"error": "Failed to save cards to database."}), 500
 
-@app.route('/get_due_cards', methods=['GET'])
-def get_due_cards():
+@app.route('/get_decks', methods=['GET'])
+def get_decks():
+    # New route to feed the Dashboard
     try:
         conn = get_db_connection()
-        due_cards = conn.execute('''
-            SELECT * FROM cards WHERE next_review_date <= date('now')
+        decks = conn.execute('''
+            SELECT deck_name, 
+                   COUNT(*) as total_cards,
+                   SUM(CASE WHEN next_review_date <= date('now') THEN 1 ELSE 0 END) as due_cards
+            FROM cards 
+            GROUP BY deck_name
         ''').fetchall()
+        conn.close()
+        # Ensure due_cards is an integer (returns None if no cards are due)
+        deck_list = [{"deck_name": d["deck_name"], "total_cards": d["total_cards"], "due_cards": d["due_cards"] or 0} for d in decks]
+        return jsonify(deck_list)
+    except Exception as e:
+        app.logger.error(f"Database error: {e}")
+        return jsonify({"error": "Failed to fetch decks."}), 500
+
+@app.route('/get_due_cards', methods=['GET'])
+def get_due_cards():
+    deck_name = request.args.get('deck') # Now accepts a URL parameter
+    try:
+        conn = get_db_connection()
+        if deck_name:
+            due_cards = conn.execute('''
+                SELECT * FROM cards 
+                WHERE next_review_date <= date('now') AND deck_name = ?
+            ''', (deck_name,)).fetchall()
+        else:
+            due_cards = []
         conn.close()
         return jsonify([dict(card) for card in due_cards])
     except Exception as e:
