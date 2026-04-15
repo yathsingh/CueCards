@@ -61,5 +61,6 @@ Want to spin up CueCards on your own machine? It takes less than 2 minutes.
 
 **1. Clone the repo:**
 ```bash
-git clone [https://github.com/yourusername/cuecards.git](https://github.com/yourusername/cuecards.git)
-cd cuecards
+git clone https://github.com/yathsingh/CueCards.git
+
+cd CueCards
