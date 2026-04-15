@@ -22,6 +22,9 @@ function updateCoins(newAmount) {
 }
 
 // --- MASCOT LOGIC ---
+let lastMascotMessageTime = 0; // Tracks the last time Cue spoke
+const MASCOT_COOLDOWN = 60000; // 60,000ms = 1 Minute
+
 const mascotPhrases = {
     idle: [
         "You're doing great! 🌟",
@@ -29,31 +32,31 @@ const mascotPhrases = {
         "I believe in you!",
         "Learning is a superpower! ⚡",
         "Consistency is key! 🗝️",
-        "Let's crush this deck! 🔥",
-        "Take a deep breath, you got this!"
+        "Let's crush this deck! 🔥"
     ],
     success: [
         "Perfect memory! 🎯",
         "Nailed it! 🚀",
-        "You're on fire! 🔥",
-        "Wow, incredible! ⭐"
+        "You're on fire! 🔥"
     ],
     struggle: [
-        "That's okay, mistakes help us learn! 🌱",
+        "Mistakes help us learn! 🌱",
         "We'll get it next time!",
-        "Don't give up! 💪",
-        "Practice makes perfect!"
+        "Don't give up! 💪"
     ]
 };
 
-// Variable to hold the interval ID so we can reset it if needed
 let mascotInterval;
 
 function triggerMascot(type = 'idle', customText = null) {
+    const now = Date.now();
+    
+    // STRICT COOLDOWN: If 1 minute hasn't passed, do nothing
+    if (now - lastMascotMessageTime < MASCOT_COOLDOWN) return;
+
     const bubble = document.getElementById('mascotSpeech');
     if (!bubble) return;
     
-    // Quick pop animation
     bubble.style.transform = 'scale(0.8)';
     bubble.style.opacity = '0';
     
@@ -61,70 +64,33 @@ function triggerMascot(type = 'idle', customText = null) {
         if (customText) {
             bubble.innerText = customText;
         } else if (type === 'progress') {
-            // Dynamic Progress Message
             const cardsLeft = currentDeck.length - currentIndex;
-            if (cardsLeft === 1) {
-                bubble.innerText = "Just 1 card left! Finish strong! 🏁";
-            } else if (cardsLeft > 0) {
-                bubble.innerText = `Only ${cardsLeft} revisions left in this session! Keep going! 💪`;
-            } else {
-                bubble.innerText = "All done! You're a rockstar! 🌟";
-            }
+            bubble.innerText = cardsLeft === 1 ? "Last one! 🏁" : `Only ${cardsLeft} revisions left! 💪`;
         } else {
             const list = mascotPhrases[type];
             bubble.innerText = list[Math.floor(Math.random() * list.length)];
         }
         bubble.style.transform = 'scale(1)';
         bubble.style.opacity = '1';
+        
+        // Update the timestamp so he waits another minute
+        lastMascotMessageTime = Date.now();
     }, 200);
-
-    // Reset the idle timer whenever Cue speaks to prevent talking over himself
-    startMascotTimer();
 }
 
 function startMascotTimer() {
-    // Clear existing timer if there is one
     if (mascotInterval) clearInterval(mascotInterval);
-    
-    // Cue talks randomly every 60 seconds (much slower, less annoying)
+    // Automatic idle chat every 1 minute
     mascotInterval = setInterval(() => {
-        // If in a review session, occasionally say how many are left
-        if (document.getElementById('reviewSection').style.display === 'block' && currentDeck.length > 0) {
-             if(Math.random() > 0.5) {
-                 triggerMascot('progress');
-             } else {
-                 triggerMascot('idle');
-             }
+        if (document.getElementById('reviewSection').style.display === 'block') {
+            triggerMascot(Math.random() > 0.5 ? 'progress' : 'idle');
         } else {
             triggerMascot('idle');
         }
-    }, 60000); // 60,000 ms = 1 minute
+    }, 60000); 
 }
 
-// Start the timer initially
 startMascotTimer();
-function triggerMascot(type = 'idle', customText = null) {
-    const bubble = document.getElementById('mascotSpeech');
-    if (!bubble) return;
-    
-    // Quick pop animation
-    bubble.style.transform = 'scale(0.8)';
-    bubble.style.opacity = '0';
-    
-    setTimeout(() => {
-        if (customText) {
-            bubble.innerText = customText;
-        } else {
-            const list = mascotPhrases[type];
-            bubble.innerText = list[Math.floor(Math.random() * list.length)];
-        }
-        bubble.style.transform = 'scale(1)';
-        bubble.style.opacity = '1';
-    }, 200);
-}
-
-// Cue talks randomly every 15 seconds!
-setInterval(() => triggerMascot('idle'), 15000);
 
 function showToast(message) {
     const toast = document.getElementById('toastNotification');
@@ -499,6 +465,25 @@ function playTone(freq, type, duration, delay=0) {
     gain.gain.setValueAtTime(0.1, startTime);
     gain.gain.exponentialRampToValueAtTime(0.00001, startTime + duration);
     osc.stop(startTime + duration);
+}
+
+async function deleteCurrentCard() {
+    if (!confirm("Are you sure you want to delete this card forever?")) return;
+    
+    const cardId = currentDeck[currentIndex].id;
+    try {
+        await fetch(`/delete_card/${cardId}`, { method: 'DELETE' });
+        showToast("Card deleted! 🗑️");
+        
+        // Remove it from the local array
+        currentDeck.splice(currentIndex, 1);
+        
+        // Offset the index so it doesn't skip the *next* card, then display it
+        currentIndex--; 
+        animateToNextCard();
+    } catch (e) {
+        console.error("Failed to delete card", e);
+    }
 }
 
 window.onload = () => {
