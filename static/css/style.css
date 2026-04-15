@@ -1,5 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
+/* FIXED: Universal CSS Reset ensures paddings never cause off-center containers */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: #0f172a; 
@@ -40,7 +45,6 @@ input[type="file"], input[type="text"] {
     border: 2px dashed #475569;
     border-radius: 12px;
     width: 100%;
-    box-sizing: border-box;
     cursor: pointer;
     background: rgba(15, 23, 42, 0.5);
     color: #f8fafc;
@@ -121,8 +125,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
 .front, .back {
     position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 40px;
-    box-sizing: border-box; border-radius: 20px; font-size: 1.2em; line-height: 1.6;
+    align-items: center; justify-content: center; 
+    /* FIXED: Adjusted padding so text doesn't look off-center relative to the absolute buttons */
+    padding: 40px 60px;
+    border-radius: 20px; font-size: 1.2em; line-height: 1.6;
     overflow-y: auto; 
 }
 
@@ -212,6 +218,30 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     border-color: #ef4444;
 }
 
+.menu-trash-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #ef4444;
+}
+.menu-trash-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    transform: scale(1.1);
+}
+
 .glow-success {
     box-shadow: 0 0 40px rgba(16, 185, 129, 0.8) !important;
     border-color: #10b981 !important;
@@ -249,7 +279,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     font-size: 0.95rem;
     width: 100%;
     max-width: 240px; 
-    box-sizing: border-box; /* FIX: Prevents text from pushing past padding */
     text-align: center;
     display: flex;
     justify-content: center;
@@ -259,18 +288,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     position: relative;
     backdrop-filter: blur(12px);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    line-height: 1.5; /* FIX: Proper spacing for multi-line chats */
+    line-height: 1.5; 
 }
 #mascotImg {
     width: 180px; 
     height: auto;
-    display: block; /* FIX: Required for consistent CSS transforms on images */
+    display: block; 
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
-    -webkit-animation: floatMascot 4s ease-in-out infinite; /* FIX: Cross-browser support */
+    -webkit-animation: floatMascot 4s ease-in-out infinite; 
     animation: floatMascot 4s ease-in-out infinite;
 }
 
-/* Cross-browser Animation Keyframes */
 @-webkit-keyframes floatMascot {
     0%, 100% { -webkit-transform: translateY(0) rotate(-2deg); }
     50% { -webkit-transform: translateY(-15px) rotate(2deg); }

@@ -278,5 +278,22 @@ def delete_card(card_id):
     except Exception as e: 
         return jsonify({"error": "Failed to delete card."}), 500
 
+# NEW ROUTE: Delete Entire Deck safely
+@app.route('/delete_deck', methods=['POST'])
+def delete_deck():
+    deck_name = request.json.get('deck_name')
+    if not deck_name:
+        return jsonify({"error": "No deck name provided"}), 400
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM cards WHERE deck_name = ?', (deck_name,))
+        # Cleanup any daily rewards for the deleted deck too
+        conn.execute('DELETE FROM daily_rewards WHERE deck_name = ?', (deck_name,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Deck deleted forever"})
+    except Exception as e: 
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

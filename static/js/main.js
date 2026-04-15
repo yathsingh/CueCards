@@ -110,14 +110,14 @@ function hideAll() {
 function showDashboardSection() {
     hideAll();
     document.getElementById('dashboardSection').style.display = 'block';
-    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
+    document.getElementById('modelSelect').style.display = 'block'; 
     loadDashboard();
 }
 
 function showUploadSection() {
     hideAll();
     document.getElementById('uploadSection').style.display = 'block';
-    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
+    document.getElementById('modelSelect').style.display = 'block'; 
     document.getElementById('deckName').value = "";
     document.getElementById('pdfUpload').value = "";
     document.getElementById('status').innerText = "";
@@ -127,7 +127,7 @@ function openDeckMenu(deckName, dueCards, totalCards) {
     hideAll();
     currentDeckName = deckName;
     document.getElementById('deckMenuSection').style.display = 'block';
-    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
+    document.getElementById('modelSelect').style.display = 'block'; 
     document.getElementById('menuDeckTitle').innerText = deckName;
     document.getElementById('menuDeckStats').innerText = `${dueCards} Cards Due  |  ${totalCards} Total Cards`;
 
@@ -219,7 +219,6 @@ async function startMode(mode) {
     currentMode = mode;
     hideAll();
     
-    // HIDE model selector when cards are active to prevent UI overlap
     document.getElementById('modelSelect').style.display = 'none'; 
     
     document.getElementById('reviewSection').style.display = 'block';
@@ -495,6 +494,27 @@ async function deleteCurrentCard() {
 
     } catch (e) {
         console.error("Failed to delete card", e);
+    }
+}
+
+// --- NEW DELETE ENTIRE DECK LOGIC ---
+async function deleteCurrentDeck() {
+    if (!confirm(`🚨 WARNING: Are you sure you want to delete the ENTIRE deck "${currentDeckName}"?\n\nThis will permanently erase all cards and progress.`)) return;
+    
+    try {
+        const response = await fetch('/delete_deck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deck_name: currentDeckName })
+        });
+        
+        if (!response.ok) throw new Error("Failed to delete deck");
+        
+        showToast(`Deck deleted! 🗑️`);
+        showDashboardSection(); 
+    } catch (e) {
+        console.error("Failed to delete deck", e);
+        showToast("Error deleting deck.");
     }
 }
 

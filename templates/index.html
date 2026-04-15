@@ -41,14 +41,17 @@
             <button class="btn-primary" onclick="showUploadSection()">+ Create New Deck</button>
         </div>
 
-        <div id="deckMenuSection" style="display: none;">
-            <h2 id="menuDeckTitle" style="margin-bottom: 5px;">Deck Name</h2>
+        <div id="deckMenuSection" style="display: none; position: relative;">
+            <button class="menu-trash-btn" onclick="deleteCurrentDeck()" title="Delete Entire Deck">🗑️</button>
+
+            <h2 id="menuDeckTitle" style="margin-bottom: 5px; padding: 0 40px;">Deck Name</h2>
             <p id="menuDeckStats" style="font-weight: 600; color: #3b82f6;">X Due / Y Total</p>
+            
             <div class="menu-stack">
                 <button id="btnDaily" class="btn-primary" onclick="startMode('daily')">🔥 Daily Revision (SM-2)</button>
                 <button class="btn-warning" onclick="startMode('cram')">⚡ Cram Session (All Cards)</button>
                 <button class="btn-success" onclick="startMode('study')">📖 Study Mode (Flip Only)</button>
-                <button class="btn-secondary" onclick="showDashboardSection()">Back to Decks</button>
+                <button class="btn-secondary" style="margin-top: 25px;" onclick="showDashboardSection()">Back to Decks</button>
             </div>
         </div>
 
