@@ -6,9 +6,19 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div id="coinDisplay" style="position: fixed; top: 20px; right: 20px; background: rgba(30, 41, 59, 0.85); border: 1px solid #475569; padding: 10px 20px; border-radius: 30px; color: #f8fafc; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(12px); z-index: 1000; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
-        <span style="font-size: 1.3em;">🪙</span> 
-        <span id="coinCount" style="font-size: 1.1em; color: #fbbf24;">0</span>
+    <div id="topControls" style="position: fixed; top: 20px; right: 20px; display: flex; gap: 15px; z-index: 1000; align-items: center;">
+        
+        <select id="modelSelect" style="background: rgba(30, 41, 59, 0.85); border: 1px solid #475569; padding: 10px 15px; border-radius: 20px; color: #f8fafc; font-weight: 600; font-family: inherit; outline: none; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(12px); transition: border-color 0.3s;">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-3-flash-preview" selected>Gemini 3 Flash</option>
+            <option value="gemini-3-flash-lite-preview">Gemini 3 Flash Lite</option>
+            <option value="local">Local (Ollama - Localhost Only)</option>
+        </select>
+
+        <div id="coinDisplay" style="background: rgba(30, 41, 59, 0.85); border: 1px solid #475569; padding: 10px 20px; border-radius: 30px; color: #f8fafc; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(12px); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <span style="font-size: 1.3em;">🪙</span> 
+            <span id="coinCount" style="font-size: 1.1em; color: #fbbf24;">0</span>
+        </div>
     </div>
 
     <div id="toastNotification" class="toast">
@@ -63,10 +73,12 @@
                         <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('front')" title="Read aloud">🔊</button>
                         <button class="voice-btn mic" id="micBtn" onclick="event.stopPropagation(); startDictation()" title="Answer with voice">🎙️</button>
                         <div id="cardFront">Question</div>
+                        <button class="voice-btn trash" onclick="event.stopPropagation(); deleteCurrentCard()" title="Delete Card">🗑️</button>
                     </div>
                     <div class="back">
                         <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('back')" title="Read aloud">🔊</button>
                         <div id="cardBack">Answer</div>
+                        <button class="voice-btn trash" onclick="event.stopPropagation(); deleteCurrentCard()" title="Delete Card">🗑️</button>
                     </div>
                 </div>
             </div>

@@ -46,14 +46,12 @@ const mascotPhrases = {
     ]
 };
 
-// Variable to hold the interval ID so we can reset it if needed
 let mascotInterval;
 
 function triggerMascot(type = 'idle', customText = null) {
     const bubble = document.getElementById('mascotSpeech');
     if (!bubble) return;
     
-    // Quick pop animation
     bubble.style.transform = 'scale(0.8)';
     bubble.style.opacity = '0';
     
@@ -61,14 +59,14 @@ function triggerMascot(type = 'idle', customText = null) {
         if (customText) {
             bubble.innerText = customText;
         } else if (type === 'progress') {
-            // Dynamic Progress Message
-            const cardsLeft = currentDeck.length - currentIndex;
-            if (cardsLeft === 1) {
+            const cardsLeft = Math.max(0, currentDeck.length - currentIndex);
+            
+            if (cardsLeft <= 0) {
+                bubble.innerText = "All caught up! 🏆";
+            } else if (cardsLeft === 1) {
                 bubble.innerText = "Just 1 card left! Finish strong! 🏁";
-            } else if (cardsLeft > 0) {
-                bubble.innerText = `Only ${cardsLeft} revisions left in this session! Keep going! 💪`;
             } else {
-                bubble.innerText = "All done! You're a rockstar! 🌟";
+                bubble.innerText = `Only ${cardsLeft} revisions left! Keep going! 💪`;
             }
         } else {
             const list = mascotPhrases[type];
@@ -78,53 +76,22 @@ function triggerMascot(type = 'idle', customText = null) {
         bubble.style.opacity = '1';
     }, 200);
 
-    // Reset the idle timer whenever Cue speaks to prevent talking over himself
     startMascotTimer();
 }
 
 function startMascotTimer() {
-    // Clear existing timer if there is one
     if (mascotInterval) clearInterval(mascotInterval);
-    
-    // Cue talks randomly every 60 seconds (much slower, less annoying)
     mascotInterval = setInterval(() => {
-        // If in a review session, occasionally say how many are left
         if (document.getElementById('reviewSection').style.display === 'block' && currentDeck.length > 0) {
-             if(Math.random() > 0.5) {
-                 triggerMascot('progress');
-             } else {
-                 triggerMascot('idle');
-             }
+             if(Math.random() > 0.5) triggerMascot('progress');
+             else triggerMascot('idle');
         } else {
             triggerMascot('idle');
         }
-    }, 60000); // 60,000 ms = 1 minute
+    }, 60000); 
 }
 
-// Start the timer initially
 startMascotTimer();
-function triggerMascot(type = 'idle', customText = null) {
-    const bubble = document.getElementById('mascotSpeech');
-    if (!bubble) return;
-    
-    // Quick pop animation
-    bubble.style.transform = 'scale(0.8)';
-    bubble.style.opacity = '0';
-    
-    setTimeout(() => {
-        if (customText) {
-            bubble.innerText = customText;
-        } else {
-            const list = mascotPhrases[type];
-            bubble.innerText = list[Math.floor(Math.random() * list.length)];
-        }
-        bubble.style.transform = 'scale(1)';
-        bubble.style.opacity = '1';
-    }, 200);
-}
-
-// Cue talks randomly every 15 seconds!
-setInterval(() => triggerMascot('idle'), 15000);
 
 function showToast(message) {
     const toast = document.getElementById('toastNotification');
@@ -143,12 +110,14 @@ function hideAll() {
 function showDashboardSection() {
     hideAll();
     document.getElementById('dashboardSection').style.display = 'block';
+    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
     loadDashboard();
 }
 
 function showUploadSection() {
     hideAll();
     document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
     document.getElementById('deckName').value = "";
     document.getElementById('pdfUpload').value = "";
     document.getElementById('status').innerText = "";
@@ -158,6 +127,7 @@ function openDeckMenu(deckName, dueCards, totalCards) {
     hideAll();
     currentDeckName = deckName;
     document.getElementById('deckMenuSection').style.display = 'block';
+    document.getElementById('modelSelect').style.display = 'block'; // SHOW model selector
     document.getElementById('menuDeckTitle').innerText = deckName;
     document.getElementById('menuDeckStats').innerText = `${dueCards} Cards Due  |  ${totalCards} Total Cards`;
 
@@ -209,6 +179,7 @@ async function processPDF() {
     const fileInput = document.getElementById('pdfUpload');
     const deckNameInput = document.getElementById('deckName').value.trim();
     const statusDiv = document.getElementById('status');
+    const selectedModel = document.getElementById('modelSelect').value;
 
     if (!deckNameInput) { statusDiv.innerText = "Please give your deck a name!"; return; }
     if (!fileInput.files.length) { statusDiv.innerText = "Please select a PDF first!"; return; }
@@ -225,7 +196,7 @@ async function processPDF() {
         statusDiv.innerText = "AI is generating cards...";
         let aiResponse = await fetch('/generate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: data.preview })
+            body: JSON.stringify({ text: data.preview, ai_model: selectedModel })
         });
         
         if (!aiResponse.ok) throw new Error((await aiResponse.json()).error || "Generation failed.");
@@ -247,6 +218,10 @@ async function processPDF() {
 async function startMode(mode) {
     currentMode = mode;
     hideAll();
+    
+    // HIDE model selector when cards are active to prevent UI overlap
+    document.getElementById('modelSelect').style.display = 'none'; 
+    
     document.getElementById('reviewSection').style.display = 'block';
     
     let titleStr = mode === 'daily' ? 'Daily Revision' : mode === 'cram' ? 'Cram Session' : 'Study Mode';
@@ -270,7 +245,6 @@ async function startMode(mode) {
 }
 
 async function displayCard() {
-    // Stop reading previous card if we skip ahead quickly
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
     if (currentIndex >= currentDeck.length || currentIndex < 0) {
@@ -279,7 +253,6 @@ async function displayCard() {
         document.getElementById('gradeButtons').style.display = 'none';
         document.getElementById('studyButtons').style.display = 'none';
 
-        // Check for daily reward
         if (currentMode === 'daily' && currentDeck.length > 0) {
             try {
                 const res = await fetch('/complete_review', {
@@ -331,7 +304,6 @@ function flipCard() {
 async function submitGrade(grade) {
     document.getElementById('gradeButtons').style.display = 'none';
 
-    // Cue Reacts ONLY 30% of the time so he isn't overly chatty when you review fast
     if (Math.random() > 0.70) {
         if (grade >= 4) triggerMascot('success');
         else if (grade <= 2) triggerMascot('struggle');
@@ -411,8 +383,6 @@ function startDictation() {
 
     recognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
-        
-        // Smart error handling to tell you exactly what went wrong
         if (event.error === 'not-allowed' || event.error === 'permission-denied') {
             showToast("Mic blocked! Please click the lock icon in your URL bar to allow microphone access.");
         } else if (event.error === 'network') {
@@ -422,7 +392,6 @@ function startDictation() {
         } else {
             showToast(`Mic error: ${event.error}. Note: This feature works best in Google Chrome.`);
         }
-        
         resetMicBtn(micBtn);
     };
     
@@ -437,12 +406,13 @@ function resetMicBtn(btn) {
 
 async function autoGradeAnswer(spokenText) {
     const card = currentDeck[currentIndex];
+    const selectedModel = document.getElementById('modelSelect').value;
     
     try {
         const response = await fetch('/auto_grade', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: card.question, correct_answer: card.answer, user_answer: spokenText })
+            body: JSON.stringify({ question: card.question, correct_answer: card.answer, user_answer: spokenText, ai_model: selectedModel })
         });
         
         const data = await response.json();
@@ -453,25 +423,21 @@ async function autoGradeAnswer(spokenText) {
         
         const flashcard = document.getElementById('flashcard');
         
-        // Flip card to reveal the actual answer to the user
         if (!isFlipped) flipCard();
+        document.getElementById('gradeButtons').style.display = 'none';
 
-        // Visual and Audio feedback
         if (grade >= 3) {
             flashcard.classList.add('glow-success');
             playTone(600, 'sine', 0.1); 
-            playTone(800, 'sine', 0.15, 0.1); // Mario coin effect
+            playTone(800, 'sine', 0.15, 0.1); 
         } else {
             flashcard.classList.add('glow-fail');
-            playTone(200, 'sawtooth', 0.3); // Buzzer effect
+            playTone(200, 'sawtooth', 0.3); 
         }
         
-        // Wait 2.5 seconds for the user to compare their answer, then auto-submit
         setTimeout(() => {
             flashcard.classList.remove('glow-success', 'glow-fail');
-            if (currentMode !== 'study') {
-                submitGrade(grade);
-            }
+            if (currentMode !== 'study') submitGrade(grade);
         }, 2500);
 
     } catch (error) {
@@ -480,7 +446,6 @@ async function autoGradeAnswer(spokenText) {
     }
 }
 
-// Simple Web Audio API Synthesizer for feedback noises
 function playTone(freq, type, duration, delay=0) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -499,6 +464,38 @@ function playTone(freq, type, duration, delay=0) {
     gain.gain.setValueAtTime(0.1, startTime);
     gain.gain.exponentialRampToValueAtTime(0.00001, startTime + duration);
     osc.stop(startTime + duration);
+}
+
+// --- NEW DELETE CARD LOGIC ---
+async function deleteCurrentCard() {
+    if (!confirm("Are you sure you want to delete this card forever?")) return;
+    
+    const cardId = currentDeck[currentIndex].id;
+    try {
+        await fetch(`/delete_card/${cardId}`, { method: 'DELETE' });
+        showToast("Card deleted! 🗑️");
+        
+        currentDeck.splice(currentIndex, 1);
+        
+        if (currentDeck.length === 0) {
+            displayCard(); 
+            return;
+        }
+        
+        if (currentIndex >= currentDeck.length) {
+            currentIndex = currentDeck.length - 1;
+        }
+        
+        const flashcardContainer = document.querySelector('.card-container');
+        flashcardContainer.classList.add('slide-out');
+        setTimeout(() => {
+            flashcardContainer.classList.remove('slide-out');
+            displayCard();
+        }, 350);
+
+    } catch (e) {
+        console.error("Failed to delete card", e);
+    }
 }
 
 window.onload = () => {

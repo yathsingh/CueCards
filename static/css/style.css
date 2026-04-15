@@ -2,13 +2,11 @@
 
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    /* --- THE DARK SQUARE NET BACKGROUND --- */
-    background-color: #0f172a; /* Deep slate base */
+    background-color: #0f172a; 
     background-image: 
         linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 40px 40px; /* Size of the grid squares */
-    
+    background-size: 40px 40px; 
     color: #f8fafc;
     margin: 0;
     padding: 0;
@@ -21,7 +19,6 @@ body {
 .container {
     max-width: 650px;
     width: 90%;
-    /* Dark Glassmorphism effect */
     background: rgba(30, 41, 59, 0.7);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -37,7 +34,6 @@ h1 { color: #f8fafc; margin-bottom: 8px; font-weight: 700; letter-spacing: -0.5p
 h2 { color: #e2e8f0; font-weight: 600; margin-bottom: 15px;}
 p { color: #94a3b8; margin-bottom: 25px; }
 
-/* Inputs */
 input[type="file"], input[type="text"] {
     margin-bottom: 20px;
     padding: 16px;
@@ -54,8 +50,8 @@ input[type="file"], input[type="text"] {
 input[type="text"] { border-style: solid; border-width: 1px; font-size: 16px; }
 input[type="text"]::placeholder { color: #64748b; }
 input[type="file"]:hover { border-color: #3b82f6; }
+select:hover { border-color: #3b82f6 !important; }
 
-/* --- BUTTON SYSTEM --- */
 button {
     padding: 14px 28px;
     border-radius: 12px;
@@ -72,28 +68,22 @@ button {
 
 button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-/* Primary (Blue) */
 .btn-primary { background-color: #3b82f6; color: white; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2); }
 .btn-primary:hover:not(:disabled) { background-color: #2563eb; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3); }
 
-/* Secondary (Dark Grey) */
 .btn-secondary { background-color: #334155; color: #f8fafc; }
 .btn-secondary:hover:not(:disabled) { background-color: #475569; transform: translateY(-2px); }
 
-/* Warning (Orange for Cram Mode) */
 .btn-warning { background-color: #f59e0b; color: white; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2); }
 .btn-warning:hover:not(:disabled) { background-color: #d97706; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3); }
 
-/* Success (Green for Study Mode) */
 .btn-success { background-color: #10b981; color: white; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); }
 .btn-success:hover:not(:disabled) { background-color: #059669; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3); }
 
-/* Layout Utilities */
 .menu-stack { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
 .button-row { display: flex; gap: 10px; justify-content: center; margin-top: 15px;}
 #status, #reviewStatus { margin-top: 20px; font-weight: 600; color: #94a3b8; font-size: 0.95em; }
 
-/* --- DASHBOARD DECKS --- */
 .deck-btn {
     display: flex;
     justify-content: space-between;
@@ -119,7 +109,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     background: #ef4444; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 700;
 }
 
-/* --- FLASHCARD PHYSICS --- */
 .card-container {
     width: 100%; max-width: 480px; height: 280px; perspective: 1200px; margin: 25px auto;
 }
@@ -131,20 +120,24 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
 .card.flipped { transform: rotateY(180deg); }
 .front, .back {
     position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-    display: flex; align-items: center; justify-content: center; padding: 40px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 40px;
     box-sizing: border-box; border-radius: 20px; font-size: 1.2em; line-height: 1.6;
+    overflow-y: auto; 
 }
-/* Dark theme cards */
+
+.front::-webkit-scrollbar, .back::-webkit-scrollbar { width: 6px; }
+.front::-webkit-scrollbar-track, .back::-webkit-scrollbar-track { background: transparent; }
+.front::-webkit-scrollbar-thumb, .back::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+
 .front { background: #1e293b; color: #f8fafc; border: 1px solid #475569; }
 .back { transform: rotateY(180deg); background: #0f172a; color: #38bdf8; border: 1px solid #0284c7; }
 
-/* Animations */
 .slide-out { animation: slideOutLeft 0.4s forwards cubic-bezier(0.4, 0, 0.2, 1); }
 .slide-in { animation: slideInRight 0.4s forwards cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes slideOutLeft { to { opacity: 0; transform: translateX(-50px) scale(0.95); } }
 @keyframes slideInRight { from { opacity: 0; transform: translateX(50px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
 
-/* Grading Buttons */
 #gradeButtons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 25px; }
 #gradeButtons button {
     flex: 1 1 30%; background: #334155; color: #f8fafc; border: 1px solid #475569;
@@ -152,14 +145,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
 }
 #gradeButtons button:hover { background: #475569; transform: translateY(-2px); }
 
-/* --- CUSTOM TOAST NOTIFICATION --- */
 .toast {
     position: fixed;
     top: 30px;
     left: 50%;
-    /* Start slightly higher and transparent for the drop-in effect */
     transform: translateX(-50%) translateY(-20px);
-    background: rgba(16, 185, 129, 0.9); /* Success Green Glassmorphism */
+    background: rgba(16, 185, 129, 0.9); 
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     color: white;
@@ -171,20 +162,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     z-index: 2000;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy spring transition */
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
     display: flex;
     align-items: center;
     gap: 12px;
     border: 1px solid rgba(255,255,255,0.2);
 }
-
 .toast.show {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(0); /* Drops into place smoothly */
+    transform: translateX(-50%) translateY(0); 
 }
 
-/* --- VOICE & MIC BUTTONS --- */
 .voice-btn {
     position: absolute;
     right: 15px;
@@ -203,9 +192,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     z-index: 10;
     color: #f8fafc;
 }
-
 .speaker { top: 15px; }
-.mic { top: 65px; } /* Sits right beneath the speaker */
+.mic { top: 65px; } 
 
 .voice-btn:hover {
     background: rgba(56, 189, 248, 0.2);
@@ -213,7 +201,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     border-color: #38bdf8;
 }
 
-/* --- AUTO-GRADER GLOW PHYSICS --- */
+.trash { 
+    top: auto; 
+    bottom: 15px; 
+    background: rgba(239, 68, 68, 0.2); 
+    border-color: rgba(239, 68, 68, 0.4);
+}
+.trash:hover {
+    background: rgba(239, 68, 68, 0.4);
+    border-color: #ef4444;
+}
+
 .glow-success {
     box-shadow: 0 0 40px rgba(16, 185, 129, 0.8) !important;
     border-color: #10b981 !important;
@@ -231,55 +229,52 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 260px; /* NEW: Fixed width prevents the mascot from shifting! */
+    width: 260px; 
     z-index: 500;
     pointer-events: none;
 }
-
 @media (min-width: 1050px) {
     .mascot-container {
         bottom: 10%;
         left: 5%; 
     }
 }
-
 .speech-bubble {
     background: rgba(30, 41, 59, 0.95);
-    border: 2px solid #38bdf8; /* Neon blue */
+    border: 2px solid #38bdf8; 
     color: #f8fafc;
     padding: 14px 20px;
     border-radius: 20px; 
     font-weight: 600;
     font-size: 0.95rem;
-    max-width: 220px;
+    width: 100%;
+    max-width: 240px; 
+    box-sizing: border-box; /* FIX: Prevents text from pushing past padding */
     text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     margin-bottom: 15px;
     position: relative;
     backdrop-filter: blur(12px);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    line-height: 1.5; /* FIX: Proper spacing for multi-line chats */
 }
-
-/* The little triangle pointing to Cue */
-.speech-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 12px 12px 0;
-    border-style: solid;
-    border-color: #38bdf8 transparent transparent transparent;
-}
-
 #mascotImg {
-    width: 140px;
+    width: 180px; 
     height: auto;
+    display: block; /* FIX: Required for consistent CSS transforms on images */
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
+    -webkit-animation: floatMascot 4s ease-in-out infinite; /* FIX: Cross-browser support */
     animation: floatMascot 4s ease-in-out infinite;
 }
 
-/* Makes Cue hover up and down slightly */
+/* Cross-browser Animation Keyframes */
+@-webkit-keyframes floatMascot {
+    0%, 100% { -webkit-transform: translateY(0) rotate(-2deg); }
+    50% { -webkit-transform: translateY(-15px) rotate(2deg); }
+}
 @keyframes floatMascot {
     0%, 100% { transform: translateY(0) rotate(-2deg); }
     50% { transform: translateY(-15px) rotate(2deg); }

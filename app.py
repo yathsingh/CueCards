@@ -15,18 +15,18 @@ app.logger.setLevel(logging.INFO)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-USE_LOCAL_AI = False
-
-if not USE_LOCAL_AI:
+try:
     from google import genai
     from google.genai import types
-    try:
-        client = genai.Client()
-    except Exception as e:
-        app.logger.error(f"Failed to initialize Gemini Client: {e}")
-        client = None
-else:
+    client = genai.Client()
+except Exception as e:
+    app.logger.error(f"Failed to initialize Gemini Client: {e}")
+    client = None
+
+try:
     import ollama
+except ImportError:
+    ollama = None
 
 def get_db_connection():
     os.makedirs('database', exist_ok=True)
@@ -56,13 +56,13 @@ def get_db_connection():
 def index():
     return render_template('index.html')
 
-# --- VOICE GRADING ROUTE ---
 @app.route('/auto_grade', methods=['POST'])
 def auto_grade():
     data = request.json
     question = data.get('question')
     correct_answer = data.get('correct_answer')
     user_answer = data.get('user_answer')
+    ai_model = data.get('ai_model', 'gemini-3-flash-preview')
 
     if not all([question, correct_answer, user_answer]):
         return jsonify({"error": "Missing data for grading"}), 400
@@ -84,7 +84,8 @@ def auto_grade():
     Return ONLY a single integer from 0 to 5. No text, no explanation.
     """
 
-    if USE_LOCAL_AI:
+    if ai_model == 'local':
+        if not ollama: return jsonify({"error": "Ollama is not installed on this server."}), 500
         try:
             response = ollama.generate(model='llama3', prompt=prompt)
             match = re.search(r'\d', response.get('response', ''))
@@ -96,7 +97,7 @@ def auto_grade():
         if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
         try:
             response = client.models.generate_content(
-                model='gemini-3-flash-preview',
+                model=ai_model,
                 contents=prompt,
             )
             match = re.search(r'\d', response.text)
@@ -105,7 +106,6 @@ def auto_grade():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-# --- GAMIFICATION ROUTES ---
 @app.route('/get_coins', methods=['GET'])
 def get_coins():
     try:
@@ -137,7 +137,6 @@ def complete_review():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- STANDARD ENGINE ROUTES ---
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
     if 'file' not in request.files: return jsonify({"error": "No file uploaded"}), 400
@@ -156,6 +155,8 @@ def upload_pdf():
 def generate_cards():
     data = request.json
     raw_text = data.get('text', '')
+    ai_model = data.get('ai_model', 'gemini-3-flash-preview')
+    
     if not raw_text: return jsonify({"error": "No text provided"}), 400
 
     prompt = f"""
@@ -168,7 +169,8 @@ def generate_cards():
     Text: {raw_text} 
     """
 
-    if USE_LOCAL_AI:
+    if ai_model == 'local':
+        if not ollama: return jsonify({"error": "Ollama is not installed on this server."}), 500
         try:
             response = ollama.generate(model='llama3', prompt=prompt)
             response_text = response.get('response', '')
@@ -180,7 +182,7 @@ def generate_cards():
         if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
         try:
             response = client.models.generate_content(
-                model='gemini-3-flash-preview',
+                model=ai_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )
@@ -264,6 +266,17 @@ def review_card(card_id):
         conn.close()
         return jsonify({"message": "Card updated"})
     except Exception as e: return jsonify({"error": "Failed to update card progress."}), 500
+
+@app.route('/delete_card/<int:card_id>', methods=['DELETE'])
+def delete_card(card_id):
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM cards WHERE id = ?', (card_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Card deleted forever"})
+    except Exception as e: 
+        return jsonify({"error": "Failed to delete card."}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
