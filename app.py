@@ -265,16 +265,5 @@ def review_card(card_id):
         return jsonify({"message": "Card updated"})
     except Exception as e: return jsonify({"error": "Failed to update card progress."}), 500
 
-@app.route('/delete_card/<int:card_id>', methods=['DELETE'])
-def delete_card(card_id):
-    try:
-        conn = get_db_connection()
-        conn.execute('DELETE FROM cards WHERE id = ?', (card_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Card deleted forever"})
-    except Exception as e: 
-        return jsonify({"error": "Failed to delete card."}), 500
-
 if __name__ == '__main__':
     app.run(debug=True)

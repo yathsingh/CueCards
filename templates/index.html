@@ -57,18 +57,18 @@
         <div id="reviewSection" style="display: none;">
             <h2 id="reviewTitle">Review Session</h2>
             
-            <div class="card" id="flashcard">
+            <div class="card-container" onclick="flipCard()">
+                <div class="card" id="flashcard">
                     <div class="front">
                         <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('front')" title="Read aloud">🔊</button>
                         <button class="voice-btn mic" id="micBtn" onclick="event.stopPropagation(); startDictation()" title="Answer with voice">🎙️</button>
                         <div id="cardFront">Question</div>
-                        <button class="voice-btn trash" onclick="event.stopPropagation(); deleteCurrentCard()" title="Delete Card">🗑️</button>
                     </div>
                     <div class="back">
                         <button class="voice-btn speaker" onclick="event.stopPropagation(); speakText('back')" title="Read aloud">🔊</button>
                         <div id="cardBack">Answer</div>
-                        <button class="voice-btn trash" onclick="event.stopPropagation(); deleteCurrentCard()" title="Delete Card">🗑️</button>
                     </div>
+                </div>
             </div>
 
             <div id="gradeButtons" style="display: none;">

@@ -131,16 +131,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
 .card.flipped { transform: rotateY(180deg); }
 .front, .back {
     position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-    display: flex; flex-direction: column; /* Changed to column to handle long text better */
-    align-items: center; justify-content: center; padding: 40px;
+    display: flex; align-items: center; justify-content: center; padding: 40px;
     box-sizing: border-box; border-radius: 20px; font-size: 1.2em; line-height: 1.6;
-    overflow-y: auto; /* NEW: Allows scrolling if text is too long */
 }
-
-/* NEW: Custom invisible scrollbar for clean UI */
-.front::-webkit-scrollbar, .back::-webkit-scrollbar { width: 6px; }
-.front::-webkit-scrollbar-track, .back::-webkit-scrollbar-track { background: transparent; }
-.front::-webkit-scrollbar-thumb, .back::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
 /* Dark theme cards */
 .front { background: #1e293b; color: #f8fafc; border: 1px solid #475569; }
 .back { transform: rotateY(180deg); background: #0f172a; color: #38bdf8; border: 1px solid #0284c7; }
@@ -238,28 +231,27 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 300px; /* Increased width to prevent shifting with a bigger image */
+    width: 260px; /* NEW: Fixed width prevents the mascot from shifting! */
     z-index: 500;
     pointer-events: none;
 }
 
-/* Updated positioning for desktop */
 @media (min-width: 1050px) {
     .mascot-container {
-        bottom: 5%; /* Moved down from 10% to sit lower on the screen */
+        bottom: 10%;
         left: 5%; 
     }
 }
 
 .speech-bubble {
     background: rgba(30, 41, 59, 0.95);
-    border: 2px solid #38bdf8;
+    border: 2px solid #38bdf8; /* Neon blue */
     color: #f8fafc;
     padding: 14px 20px;
     border-radius: 20px; 
     font-weight: 600;
     font-size: 0.95rem;
-    max-width: 240px; /* Slightly wider bubble for the bigger mascot */
+    max-width: 220px;
     text-align: center;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     margin-bottom: 15px;
@@ -268,27 +260,27 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Triangle (::after) removed as requested */
+/* The little triangle pointing to Cue */
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 12px 12px 0;
+    border-style: solid;
+    border-color: #38bdf8 transparent transparent transparent;
+}
 
 #mascotImg {
-    width: 180px; /* Bigger size! (Increased from 140px) */
+    width: 140px;
     height: auto;
     filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
     animation: floatMascot 4s ease-in-out infinite;
 }
 
+/* Makes Cue hover up and down slightly */
 @keyframes floatMascot {
     0%, 100% { transform: translateY(0) rotate(-2deg); }
     50% { transform: translateY(-15px) rotate(2deg); }
-}
-
-.trash { 
-    top: auto; 
-    bottom: 15px; /* Puts it at the bottom right corner */
-    background: rgba(239, 68, 68, 0.2); 
-    border-color: rgba(239, 68, 68, 0.4);
-}
-.trash:hover {
-    background: rgba(239, 68, 68, 0.4);
-    border-color: #ef4444;
 }
