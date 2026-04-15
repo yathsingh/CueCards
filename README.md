@@ -1,7 +1,7 @@
 <div align="center">
   <img src="static/img/Cue.png" alt="Cue the Mascot" width="200"/>
   
-  # 🃏 CueCards: The Active AI Tutor
+  # CueCards: The Active AI Tutor
   **Don't just flip flashcards. *Speak* to them.**
   
   [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
