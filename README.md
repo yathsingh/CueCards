@@ -39,15 +39,15 @@ Drop your dense engineering textbook or lecture slides into the upload zone. The
 Under the hood, CueCards uses a robust SQLite schema to track your repetition state, interval, and Ease Factor (EF) using the optimal SM-2 algorithm:
 > $EF' = EF + (0.1 - (5 - q) \cdot (0.08 + (5 - q) \cdot 0.02))$
 
-### 🎮 Gamification & "Cue" the Mascot
+### 🎮 Gamification & Cue the Mascot
 Meet **Cue**, your animated study companion. Cue tracks your progress mathematically. He stays quiet when you're in the zone, chimes in every 60 seconds with dynamic encouragement based on how many cards are left in your session, and reacts to your grades. Plus, finishing your Daily Revisions earns you coins 🪙 to build a daily study habit.
 
-### ☁️ / 💻 Hybrid AI Architecture
+### ☁️💻 Hybrid AI Architecture
 A sleek UI toggle lets you hot-swap the backend brain. Running this locally? Switch to **Local (Ollama)** for 100% offline, privacy-first AI grading. Running in production? Switch to **Gemini 3 Flash** for lightning-fast cloud inference.
 
 ---
 
-## 🛠️ Technical Trade-offs & Decisions (For the Judges)
+## 🛠️ Technical Trade-offs & Decisions 
 
 * **Semantic vs. Exact Matching:** Human memory relies on concepts, not exact strings. If a card's answer is "Canine" and the user speaks "A type of dog," basic code gives them a 0. By routing spoken text through an LLM prompt, we achieve true conceptual grading.
 * **UX Physics & State Management:** To make the digital cards feel tangible, I implemented 3D-perspective CSS backface-visibility flipping alongside Javascript state locks to ensure grading buttons only appear *after* a card has been actively attempted.
