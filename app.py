@@ -1,3 +1,6 @@
+# ==========================================
+# IMPORTS & CONFIGURATION
+# ==========================================
 import os
 import fitz
 import sqlite3
@@ -28,6 +31,10 @@ try:
 except ImportError:
     ollama = None
 
+
+# ==========================================
+# DATABASE INITIALIZATION
+# ==========================================
 def get_db_connection():
     os.makedirs('database', exist_ok=True)
     conn = sqlite3.connect('database/flashcards.db')
@@ -52,90 +59,13 @@ def get_db_connection():
     conn.commit()
     return conn
 
+
+# ==========================================
+# CORE APPLICATION ROUTES
+# ==========================================
 @app.route('/')
 def index():
     return render_template('index.html')
-
-@app.route('/auto_grade', methods=['POST'])
-def auto_grade():
-    data = request.json
-    question = data.get('question')
-    correct_answer = data.get('correct_answer')
-    user_answer = data.get('user_answer')
-    ai_model = data.get('ai_model', 'gemini-3-flash-preview')
-
-    if not all([question, correct_answer, user_answer]):
-        return jsonify({"error": "Missing data for grading"}), 400
-
-    prompt = f"""
-    You are a strict but fair AI tutor evaluating a student's spoken flashcard response.
-    Question: "{question}"
-    Actual Correct Answer: "{correct_answer}"
-    Student's Spoken Answer: "{user_answer}"
-    
-    Grade the student's spoken answer on a scale of 0 to 5:
-    0: Completely wrong or off-topic.
-    1: Incorrect, but had a slight hint of the right direction.
-    2: Incorrect, but remembered some correct details or keywords.
-    3: Correct core concept, but missing details or poorly explained.
-    4: Correct and understandable, missing only minor nuances.
-    5: Perfect, completely accurate to the actual answer.
-    
-    Return ONLY a single integer from 0 to 5. No text, no explanation.
-    """
-
-    if ai_model == 'local':
-        if not ollama: return jsonify({"error": "Ollama is not installed on this server."}), 500
-        try:
-            response = ollama.generate(model='llama3', prompt=prompt)
-            match = re.search(r'\d', response.get('response', ''))
-            grade = int(match.group()) if match else 0
-            return jsonify({"grade": min(max(grade, 0), 5)})
-        except Exception as e:
-            return jsonify({"error": f"Ollama Error: {str(e)}"}), 500
-    else:
-        if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
-        try:
-            response = client.models.generate_content(
-                model=ai_model,
-                contents=prompt,
-            )
-            match = re.search(r'\d', response.text)
-            grade = int(match.group()) if match else 0
-            return jsonify({"grade": min(max(grade, 0), 5)})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-@app.route('/get_coins', methods=['GET'])
-def get_coins():
-    try:
-        conn = get_db_connection()
-        coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
-        conn.close()
-        return jsonify({"coins": coins})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/complete_review', methods=['POST'])
-def complete_review():
-    deck_name = request.json.get('deck_name')
-    today = datetime.now().strftime('%Y-%m-%d')
-    try:
-        conn = get_db_connection()
-        rewarded = conn.execute('SELECT * FROM daily_rewards WHERE deck_name = ? AND date = ?', (deck_name, today)).fetchone()
-        
-        if not rewarded:
-            conn.execute('INSERT INTO daily_rewards (deck_name, date) VALUES (?, ?)', (deck_name, today))
-            conn.execute('UPDATE user_stats SET coins = coins + 5 WHERE id = 1')
-            conn.commit()
-            coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
-            conn.close()
-            return jsonify({"rewarded": True, "coins": coins})
-        else:
-            conn.close()
-            return jsonify({"rewarded": False})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
@@ -192,6 +122,10 @@ def generate_cards():
                 return jsonify({"error": "AI Rate Limit Reached! Wait 60s."}), 429
             return jsonify({"error": str(e)}), 500
 
+
+# ==========================================
+# DECK & CARD MANAGEMENT ROUTES
+# ==========================================
 @app.route('/save_cards', methods=['POST'])
 def save_cards():
     data = request.json
@@ -239,6 +173,36 @@ def get_all_cards():
         return jsonify([dict(card) for card in cards])
     except Exception as e: return jsonify({"error": "Failed to fetch cards."}), 500
 
+@app.route('/delete_card/<int:card_id>', methods=['DELETE'])
+def delete_card(card_id):
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM cards WHERE id = ?', (card_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Card deleted forever"})
+    except Exception as e: 
+        return jsonify({"error": "Failed to delete card."}), 500
+
+@app.route('/delete_deck', methods=['POST'])
+def delete_deck():
+    deck_name = request.json.get('deck_name')
+    if not deck_name:
+        return jsonify({"error": "No deck name provided"}), 400
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM cards WHERE deck_name = ?', (deck_name,))
+        conn.execute('DELETE FROM daily_rewards WHERE deck_name = ?', (deck_name,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Deck deleted forever"})
+    except Exception as e: 
+        return jsonify({"error": str(e)}), 500
+
+
+# ==========================================
+# FLASHCARD REVIEW & GRADING ROUTES
+# ==========================================
 @app.route('/review_card/<int:card_id>', methods=['POST'])
 def review_card(card_id):
     grade = request.json.get('grade')
@@ -267,32 +231,89 @@ def review_card(card_id):
         return jsonify({"message": "Card updated"})
     except Exception as e: return jsonify({"error": "Failed to update card progress."}), 500
 
-@app.route('/delete_card/<int:card_id>', methods=['DELETE'])
-def delete_card(card_id):
-    try:
-        conn = get_db_connection()
-        conn.execute('DELETE FROM cards WHERE id = ?', (card_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Card deleted forever"})
-    except Exception as e: 
-        return jsonify({"error": "Failed to delete card."}), 500
+@app.route('/auto_grade', methods=['POST'])
+def auto_grade():
+    data = request.json
+    question = data.get('question')
+    correct_answer = data.get('correct_answer')
+    user_answer = data.get('user_answer')
+    ai_model = data.get('ai_model', 'gemini-3-flash-preview')
 
-# NEW ROUTE: Delete Entire Deck safely
-@app.route('/delete_deck', methods=['POST'])
-def delete_deck():
-    deck_name = request.json.get('deck_name')
-    if not deck_name:
-        return jsonify({"error": "No deck name provided"}), 400
+    if not all([question, correct_answer, user_answer]):
+        return jsonify({"error": "Missing data for grading"}), 400
+
+    prompt = f"""
+    You are a strict but fair AI tutor evaluating a student's spoken flashcard response.
+    Question: "{question}"
+    Actual Correct Answer: "{correct_answer}"
+    Student's Spoken Answer: "{user_answer}"
+    
+    Grade the student's spoken answer on a scale of 0 to 5:
+    0: Completely wrong or off-topic.
+    1: Incorrect, but had a slight hint of the right direction.
+    2: Incorrect, but remembered some correct details or keywords.
+    3: Correct core concept, but missing details or poorly explained.
+    4: Correct and understandable, missing only minor nuances.
+    5: Perfect, completely accurate to the actual answer.
+    
+    Return ONLY a single integer from 0 to 5. No text, no explanation.
+    """
+
+    if ai_model == 'local':
+        if not ollama: return jsonify({"error": "Ollama is not installed on this server."}), 500
+        try:
+            response = ollama.generate(model='llama3', prompt=prompt)
+            match = re.search(r'\d', response.get('response', ''))
+            grade = int(match.group()) if match else 0
+            return jsonify({"grade": min(max(grade, 0), 5)})
+        except Exception as e:
+            return jsonify({"error": f"Ollama Error: {str(e)}"}), 500
+    else:
+        if not client: return jsonify({"error": "Cloud AI client not initialized."}), 500
+        try:
+            response = client.models.generate_content(
+                model=ai_model,
+                contents=prompt,
+            )
+            match = re.search(r'\d', response.text)
+            grade = int(match.group()) if match else 0
+            return jsonify({"grade": min(max(grade, 0), 5)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+
+# ==========================================
+# GAMIFICATION & ECONOMY ROUTES
+# ==========================================
+@app.route('/get_coins', methods=['GET'])
+def get_coins():
     try:
         conn = get_db_connection()
-        conn.execute('DELETE FROM cards WHERE deck_name = ?', (deck_name,))
-        # Cleanup any daily rewards for the deleted deck too
-        conn.execute('DELETE FROM daily_rewards WHERE deck_name = ?', (deck_name,))
-        conn.commit()
+        coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
         conn.close()
-        return jsonify({"message": "Deck deleted forever"})
-    except Exception as e: 
+        return jsonify({"coins": coins})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/complete_review', methods=['POST'])
+def complete_review():
+    deck_name = request.json.get('deck_name')
+    today = datetime.now().strftime('%Y-%m-%d')
+    try:
+        conn = get_db_connection()
+        rewarded = conn.execute('SELECT * FROM daily_rewards WHERE deck_name = ? AND date = ?', (deck_name, today)).fetchone()
+        
+        if not rewarded:
+            conn.execute('INSERT INTO daily_rewards (deck_name, date) VALUES (?, ?)', (deck_name, today))
+            conn.execute('UPDATE user_stats SET coins = coins + 5 WHERE id = 1')
+            conn.commit()
+            coins = conn.execute('SELECT coins FROM user_stats WHERE id = 1').fetchone()['coins']
+            conn.close()
+            return jsonify({"rewarded": True, "coins": coins})
+        else:
+            conn.close()
+            return jsonify({"rewarded": False})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

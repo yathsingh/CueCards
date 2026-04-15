@@ -1,3 +1,6 @@
+// ==========================================
+// GLOBAL STATE VARIABLES
+// ==========================================
 let currentDeck = [];
 let currentIndex = 0;
 let isFlipped = false;
@@ -5,7 +8,10 @@ let hasFlippedOnce = false;
 let currentDeckName = "";
 let currentMode = "daily";
 
-// --- GAMIFICATION PIPELINE ---
+
+// ==========================================
+// GAMIFICATION & ECONOMY
+// ==========================================
 async function fetchCoins() {
     try {
         const response = await fetch('/get_coins');
@@ -21,7 +27,10 @@ function updateCoins(newAmount) {
     setTimeout(() => coinEl.parentElement.style.transform = 'scale(1)', 200);
 }
 
-// --- MASCOT LOGIC ---
+
+// ==========================================
+// MASCOT ENGINE
+// ==========================================
 const mascotPhrases = {
     idle: [
         "You're doing great! 🌟",
@@ -47,11 +56,16 @@ const mascotPhrases = {
 };
 
 let mascotInterval;
+let lastMascotMessageTime = 0; 
+const MASCOT_COOLDOWN = 60000;
 
 function triggerMascot(type = 'idle', customText = null) {
     const bubble = document.getElementById('mascotSpeech');
     if (!bubble) return;
     
+    const now = Date.now();
+    if (now - lastMascotMessageTime < MASCOT_COOLDOWN) return;
+
     bubble.style.transform = 'scale(0.8)';
     bubble.style.opacity = '0';
     
@@ -93,6 +107,10 @@ function startMascotTimer() {
 
 startMascotTimer();
 
+
+// ==========================================
+// NAVIGATION & UI ROUTING
+// ==========================================
 function showToast(message) {
     const toast = document.getElementById('toastNotification');
     document.getElementById('toastMessage').innerText = message;
@@ -100,7 +118,6 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
-// --- NAVIGATION & DASHBOARD ---
 function hideAll() {
     ['dashboardSection', 'deckMenuSection', 'uploadSection', 'reviewSection'].forEach(id => {
         document.getElementById(id).style.display = 'none';
@@ -143,6 +160,10 @@ function openDeckMenu(deckName, dueCards, totalCards) {
     }
 }
 
+
+// ==========================================
+// DASHBOARD & DATA FETCHING
+// ==========================================
 async function loadDashboard() {
     const deckListDiv = document.getElementById('deckList');
     deckListDiv.innerHTML = "Loading decks...";
@@ -174,7 +195,10 @@ async function loadDashboard() {
     } catch (e) { deckListDiv.innerHTML = "Error loading decks."; }
 }
 
-// --- THE INGESTION PIPELINE ---
+
+// ==========================================
+// PDF INGESTION & DECK CREATION
+// ==========================================
 async function processPDF() {
     const fileInput = document.getElementById('pdfUpload');
     const deckNameInput = document.getElementById('deckName').value.trim();
@@ -214,7 +238,10 @@ async function processPDF() {
     } catch (error) { statusDiv.innerText = "Error: " + error.message; }
 }
 
-// --- THE MODES PIPELINE ---
+
+// ==========================================
+// REVIEW ENGINE & SPACED REPETITION
+// ==========================================
 async function startMode(mode) {
     currentMode = mode;
     hideAll();
@@ -299,7 +326,6 @@ function flipCard() {
     }
 }
 
-// --- INTERACTIONS & GRADING ---
 async function submitGrade(grade) {
     document.getElementById('gradeButtons').style.display = 'none';
 
@@ -334,10 +360,10 @@ function animateToNextCard() {
     }, 350);
 }
 
-// ==========================================
-// --- THE VOICE & AI-GRADER ENGINE ---
-// ==========================================
 
+// ==========================================
+// VOICE INTERACTION & AI GRADING
+// ==========================================
 function speakText(side) {
     if (!('speechSynthesis' in window)) {
         showToast("Your browser does not support Voice Teaching.");
@@ -445,6 +471,10 @@ async function autoGradeAnswer(spokenText) {
     }
 }
 
+
+// ==========================================
+// AUDIO SYNTHESIS
+// ==========================================
 function playTone(freq, type, duration, delay=0) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -465,7 +495,10 @@ function playTone(freq, type, duration, delay=0) {
     osc.stop(startTime + duration);
 }
 
-// --- NEW DELETE CARD LOGIC ---
+
+// ==========================================
+// DELETION LOGIC
+// ==========================================
 async function deleteCurrentCard() {
     if (!confirm("Are you sure you want to delete this card forever?")) return;
     
@@ -497,7 +530,6 @@ async function deleteCurrentCard() {
     }
 }
 
-// --- NEW DELETE ENTIRE DECK LOGIC ---
 async function deleteCurrentDeck() {
     if (!confirm(`🚨 WARNING: Are you sure you want to delete the ENTIRE deck "${currentDeckName}"?\n\nThis will permanently erase all cards and progress.`)) return;
     
@@ -518,6 +550,10 @@ async function deleteCurrentDeck() {
     }
 }
 
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
 window.onload = () => {
     loadDashboard();
     fetchCoins();

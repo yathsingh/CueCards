@@ -6,15 +6,14 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+
     <div id="topControls" style="position: fixed; top: 20px; right: 20px; display: flex; gap: 15px; z-index: 1000; align-items: center;">
-        
         <select id="modelSelect" style="background: rgba(30, 41, 59, 0.85); border: 1px solid #475569; padding: 10px 15px; border-radius: 20px; color: #f8fafc; font-weight: 600; font-family: inherit; outline: none; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(12px); transition: border-color 0.3s;">
             <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
             <option value="gemini-3-flash-preview" selected>Gemini 3 Flash</option>
             <option value="gemini-3-flash-lite-preview">Gemini 3 Flash Lite</option>
             <option value="local">Local (Ollama - Localhost Only)</option>
         </select>
-
         <div id="coinDisplay" style="background: rgba(30, 41, 59, 0.85); border: 1px solid #475569; padding: 10px 20px; border-radius: 30px; color: #f8fafc; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(12px); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
             <span style="font-size: 1.3em;">🪙</span> 
             <span id="coinCount" style="font-size: 1.1em; color: #fbbf24;">0</span>
@@ -32,6 +31,7 @@
              onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>'">
     </div>
 
+
     <div class="container">
         <h1>CueCards</h1>
         
@@ -43,7 +43,6 @@
 
         <div id="deckMenuSection" style="display: none; position: relative;">
             <button class="menu-trash-btn" onclick="deleteCurrentDeck()" title="Delete Entire Deck">🗑️</button>
-
             <h2 id="menuDeckTitle" style="margin-bottom: 5px; padding: 0 40px;">Deck Name</h2>
             <p id="menuDeckStats" style="font-weight: 600; color: #3b82f6;">X Due / Y Total</p>
             
@@ -107,6 +106,7 @@
             </div>
         </div>
     </div>
+
     <script src="/static/js/main.js"></script>
 </body>
 </html>
